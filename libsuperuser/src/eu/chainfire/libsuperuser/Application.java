@@ -45,15 +45,15 @@ public class Application extends android.app.Application {
 			final Context c = context;
 			final String m = message;
 			
-			((Application)context).runInApplicationThread(new Runnable() {				
+			((Application)context).runInApplicationThread(new Runnable() {
 				@Override
 				public void run() {
-					Toast.makeText(c, m, Toast.LENGTH_LONG).show();							
+					Toast.makeText(c, m, Toast.LENGTH_LONG).show();
 				}
 			});
 		}
-	}	
-
+	}
+	
 	private static Handler mApplicationHandler = new Handler();
 	
 	/**
@@ -64,11 +64,11 @@ public class Application extends android.app.Application {
 	public void runInApplicationThread(Runnable r) {
 		mApplicationHandler.post(r);
 	}
+	
+	@Override
+	public void onCreate() {
+		super.onCreate();
 		
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        
 		try {
 			// workaround bug in AsyncTask, can show up (for example) when you toast from a service
 			// this makes sure AsyncTask's internal handler is created from the right (main) thread
