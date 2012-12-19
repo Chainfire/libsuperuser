@@ -54,7 +54,7 @@ public class StreamGobbler extends Thread {
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				if (BuildConfig.DEBUG) {
-					Debug.log(String.format("[%s-] %s", shell, line));
+					Debug.log(String.format("[%s] %s", shell, line));
 				}
 				if (writer != null) {
 					writer.add(line);

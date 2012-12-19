@@ -75,8 +75,8 @@ public class Shell {
 			// setup our process, retrieve STDIN stream, and STDOUT/STDERR gobblers
 			Process process = Runtime.getRuntime().exec(shell);
 			DataOutputStream STDIN = new DataOutputStream(process.getOutputStream());
-			StreamGobbler STDOUT = new StreamGobbler(shellUpper, process.getInputStream(), res);
-			StreamGobbler STDERR = new StreamGobbler(shellUpper, process.getErrorStream(), wantSTDERR ? res : null);
+			StreamGobbler STDOUT = new StreamGobbler(shellUpper + "-", process.getInputStream(), res);
+			StreamGobbler STDERR = new StreamGobbler(shellUpper + "*", process.getErrorStream(), wantSTDERR ? res : null);
 			
 			// start gobbling and write our commands to the shell
 			STDOUT.start();
