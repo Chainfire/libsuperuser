@@ -106,14 +106,14 @@ public class Shell {
 			
 			// in case of su, 255 usually indicates access denied
 			if (shell.equals("su") && (process.exitValue() == 255)) {
-				return null;
+				res = null;
 			}			
 		} catch (IOException e) {
 			// shell probably not found
-			return null;
+			res = null;
 		} catch (InterruptedException e) {
 			// this should really be re-thrown
-			return null;
+			res = null;
 		}
 			
 		if (BuildConfig.DEBUG) Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
