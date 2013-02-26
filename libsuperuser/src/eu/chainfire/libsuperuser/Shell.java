@@ -18,9 +18,7 @@ package eu.chainfire.libsuperuser;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import android.os.Looper;
 
@@ -51,10 +49,28 @@ public class Shell {
 	 * 
 	 * @param shell The shell to use for executing the commands
 	 * @param commands The commands to execute
-	 * @param wantSTDERR Return STDERR in the output ? 
+	 * @param wantSTDERR Return STDERR in the output?
 	 * @return Output of the commands, or null in case of an error
 	 */
 	public static List<String> run(String shell, String[] commands, boolean wantSTDERR) {
+        return run(shell, commands, null, wantSTDERR);
+    }
+
+    /**
+     * Runs commands using the supplied shell, and returns the output, or null in
+     * case of errors.
+     *
+     * Same as the function above but with a custom environment. If the envArray is
+     * null then the default environment will be used.
+     *
+     * @param shell The shell to use for executing the commands
+     * @param commands The commands to execute
+     * @param envArray List of all environment variables or null for defaults
+     * @param wantSTDERR Return STDERR in the output?
+     * @return Output of the commands, or null in case of an error
+     */
+    public static List<String> run(String shell, String[] commands, String[] envArray, boolean wantSTDERR)
+    {
 		String shellUpper = shell.toUpperCase();
 		
 		if (BuildConfig.DEBUG) {
@@ -73,7 +89,7 @@ public class Shell {
 		
 		try {
 			// setup our process, retrieve STDIN stream, and STDOUT/STDERR gobblers
-			Process process = Runtime.getRuntime().exec(shell);
+			Process process = Runtime.getRuntime().exec(shell, envArray);
 			DataOutputStream STDIN = new DataOutputStream(process.getOutputStream());
 			StreamGobbler STDOUT = new StreamGobbler(shellUpper + "-", process.getInputStream(), res);
 			StreamGobbler STDERR = new StreamGobbler(shellUpper + "*", process.getErrorStream(), wantSTDERR ? res : null);
@@ -161,6 +177,38 @@ public class Shell {
 	 * if so which version.
 	 */
 	public static class SU {
+        private static String[] envArray = null;
+
+        /**
+         * Add or replace an environment variable
+         * @param key name of the variable
+         * @param value value of the variable
+         */
+        public static void addEnvironment(String key, String value) {
+            Map<String, String> environment = new HashMap<String, String>();
+            environment.put(key, value);
+            addEnvironment(environment);
+        }
+
+        /**
+         * Add or replace a set of environment variables
+         * @param environment map of key/value pairs
+         */
+        public static void addEnvironment(Map<String, String> environment) {
+            // create a copy of the system environment because this one is read only, then add/replace all new values
+            Map<String, String> newEnv = new HashMap<String, String>(System.getenv());
+            for (Map.Entry<String, String> entry : environment.entrySet()) {
+                newEnv.put(entry.getKey(), entry.getValue());
+            }
+
+            // convert into String array as needed by Runtime.getRuntime().exec(..)
+            envArray = new String[newEnv.size()];
+            int i = 0;
+            for (Map.Entry<String, String> entry : newEnv.entrySet()) {
+                envArray[i++] = entry.getKey() + "=" + entry.getValue();
+            }
+        }
+
 		/**
 		 * Runs command as root (if available) and return output
 		 * 
@@ -168,27 +216,27 @@ public class Shell {
 		 * @return Output of the command, or null if root isn't available or in case of an error
 		 */
 		public static List<String> run(String command) {
-			return Shell.run("su", new String[] { command }, false);
+			return Shell.run("su", new String[] { command }, envArray, false);
 		}
 		
 		/**
 		 * Runs commands as root (if available) and return output
 		 * 
-		 * @param command The commands to run
+		 * @param commands The commands to run
 		 * @return Output of the commands, or null if root isn't available or in case of an error
 		 */
 		public static List<String> run(List<String> commands) {
-			return Shell.run("su", commands.toArray(new String[commands.size()]), false);
+			return Shell.run("su", commands.toArray(new String[commands.size()]), envArray, false);
 		}
 
 		/**
 		 * Runs commands as root (if available) and return output
 		 * 
-		 * @param command The commands to run
+		 * @param commands The commands to run
 		 * @return Output of the commands, or null if root isn't available or in case of an error
 		 */
 		public static List<String> run(String[] commands) {
-			return Shell.run("su", commands, false);
+			return Shell.run("su", commands, envArray, false);
 		}
 		
 		/**
