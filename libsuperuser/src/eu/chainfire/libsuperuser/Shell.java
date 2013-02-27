@@ -60,8 +60,8 @@ public class Shell {
      * Runs commands using the supplied shell, and returns the output, or null in
      * case of errors.
      *
-     * Same as the function above but with a custom environment. If the envArray is
-     * null then the default environment will be used.
+     * The function is similar to {@link #run(String, String[], boolean)} but relies on a custom environment.
+     * If the envArray is null then the default environment will be used.
      *
      * @param shell The shell to use for executing the commands
      * @param commands The commands to execute
@@ -140,14 +140,62 @@ public class Shell {
 	 * This class provides utility functions to easily execute commands using SH
 	 */
 	public static class SH {
-		/**
+        private static String[] envArray = null;
+
+        /**
+         * Add or replace an environment variable.
+         *
+         * When you are using this function then be sure to call {@link #clearEnvironment()} when you are done.
+         *
+         * @param key name of the variable
+         * @param value value of the variable
+         */
+        public static void addEnvironment(String key, String value) {
+            Map<String, String> environment = new HashMap<String, String>();
+            environment.put(key, value);
+            addEnvironment(environment);
+        }
+
+        /**
+         * Add or replace a set of environment variables.
+         *
+         * When you are using this function then be sure to call {@link #clearEnvironment()} when you are done.
+         *
+         * @param environment map of key/value pairs
+         */
+        public static void addEnvironment(Map<String, String> environment) {
+            // create a copy of the system environment because this one is read only, then add/replace all new values
+            Map<String, String> newEnv = new HashMap<String, String>(System.getenv());
+            for (Map.Entry<String, String> entry : environment.entrySet()) {
+                newEnv.put(entry.getKey(), entry.getValue());
+            }
+
+            // convert into String array as needed by Runtime.getRuntime().exec(..)
+            envArray = new String[newEnv.size()];
+            int i = 0;
+            for (Map.Entry<String, String> entry : newEnv.entrySet()) {
+                envArray[i++] = entry.getKey() + "=" + entry.getValue();
+            }
+        }
+
+        /**
+         * Clear the memory allocated by {@link #addEnvironment(java.util.Map)} or {@link #addEnvironment(String, String)}.
+
+         * When using a custom environment then you should always call this function when you're finished with your
+         * shell.
+         */
+        public static void clearEnvironment() {
+            envArray = null;
+        }
+
+        /**
 		 * Runs command and return output
 		 * 
 		 * @param command The command to run
 		 * @return Output of the command, or null in case of an error
 		 */
 		public static List<String> run(String command) {
-			return Shell.run("sh", new String[] { command }, false);
+			return Shell.run("sh", new String[] { command }, envArray, false);
 		}
 		
 		/**
@@ -157,7 +205,7 @@ public class Shell {
 		 * @return Output of the commands, or null in case of an error
 		 */
 		public static List<String> run(List<String> commands) {
-			return Shell.run("sh", commands.toArray(new String[commands.size()]), false);
+			return Shell.run("sh", commands.toArray(new String[commands.size()]), envArray, false);
 		}
 
 		/**
@@ -180,7 +228,10 @@ public class Shell {
         private static String[] envArray = null;
 
         /**
-         * Add or replace an environment variable
+         * Add or replace an environment variable.
+         *
+         * When you are using this function then be sure to call {@link #clearEnvironment()} when you are done.
+         *
          * @param key name of the variable
          * @param value value of the variable
          */
@@ -191,7 +242,10 @@ public class Shell {
         }
 
         /**
-         * Add or replace a set of environment variables
+         * Add or replace a set of environment variables.
+         *
+         * When you are using this function then be sure to call {@link #clearEnvironment()} when you are done.         *
+         *
          * @param environment map of key/value pairs
          */
         public static void addEnvironment(Map<String, String> environment) {
@@ -207,6 +261,16 @@ public class Shell {
             for (Map.Entry<String, String> entry : newEnv.entrySet()) {
                 envArray[i++] = entry.getKey() + "=" + entry.getValue();
             }
+        }
+
+        /**
+         * Clear the memory allocated by {@link #addEnvironment(java.util.Map)} or {@link #addEnvironment(String, String)}.
+
+         * When using a custom environment then you should always call this function when you're finished with your
+         * shell.
+         */
+        public static void clearEnvironment() {
+            envArray = null;
         }
 
 		/**
