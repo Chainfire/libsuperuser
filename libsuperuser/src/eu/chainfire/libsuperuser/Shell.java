@@ -556,7 +556,7 @@ public class Shell {
 		private StreamGobbler STDERR = null;	
 				
 		private volatile boolean running = false;
-		private volatile boolean idle = true;
+		private volatile boolean idle = true; // read/write only synchronized
 		private volatile boolean closed = true;
 		private volatile int callbacks = 0;
 		
@@ -709,7 +709,7 @@ public class Shell {
 					}
 				} else {
 					runNextCommand(false);
-				}
+				}				
 			}
 			
 			if (idle && notifyIdle) {
@@ -891,19 +891,23 @@ public class Shell {
 		 * from the main UI thread because it may block for a long time. This method will
 		 * intentionally crash your app (if in debug mode) if you try to do this anyway.
 		 */
-		public synchronized void close() {
-			if (!running) return;
-			running = false;
-			closed = true;
+		public void close() {
+			boolean _idle = isIdle(); // idle must be checked synchronized
+			
+			synchronized (this) {
+				if (!running) return;
+				running = false;
+				closed = true;
+			}
 
 			// This method should not be called from the main thread unless the shell is idle
 			// and can be cleaned up with (minimal) waiting. Only throw in debug mode.
-			if (!idle && BuildConfig.DEBUG && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (!_idle && BuildConfig.DEBUG && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 			}
 			
-			if (!idle) waitForIdle();
+			if (!_idle) waitForIdle();
 			
 			try {
 				STDIN.writeBytes("exit\n");
