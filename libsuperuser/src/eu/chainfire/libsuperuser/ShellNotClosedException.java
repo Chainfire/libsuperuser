@@ -16,20 +16,14 @@
 
 package eu.chainfire.libsuperuser;
 
-import android.util.Log;
-
 /**
- * Utility class that intentionally does nothing when not in debug mode
+ * Exception class used to notify developer that a shell was not close()d
  */
-public class Debug {
-	/**
-	 * Log a message if we are in debug mode
-	 * 
-	 * @param message The message to log
-	 */
-	public static void log(String message) {
-		if (BuildConfig.DEBUG) {
-			Log.d("libsuperuser", "[libsuperuser]" + (!message.startsWith("[") && !message.startsWith(" ") ? " " : "") + message);
-		}
+@SuppressWarnings("serial")
+public class ShellNotClosedException extends RuntimeException {
+	public static final String EXCEPTION_NOT_CLOSED = "Application did not close() interactive shell";
+
+	public ShellNotClosedException() {
+		super(EXCEPTION_NOT_CLOSED);
 	}
 }
