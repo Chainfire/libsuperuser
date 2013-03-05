@@ -98,6 +98,24 @@ public class Shell {
 		List<String> res = Collections.synchronizedList(new ArrayList<String>());
 		
 		try {
+			// Combine passed environment with system environment
+			if (environment != null) {
+				Map<String, String> newEnvironment = new HashMap<String, String>();
+				newEnvironment.putAll(System.getenv());
+				int split;
+				for (String entry : environment) {
+					if ((split = entry.indexOf("=")) >= 0) {
+						newEnvironment.put(entry.substring(0, split), entry.substring(split + 1));
+					}
+				}
+				int i = 0;
+				environment = new String[newEnvironment.size()];
+	            for (Map.Entry<String, String> entry : newEnvironment.entrySet()) {
+	            	environment[i] = entry.getKey() + "=" + entry.getValue();
+	                i++;
+	            }
+			}
+			
 			// setup our process, retrieve STDIN stream, and STDOUT/STDERR gobblers
 			Process process = Runtime.getRuntime().exec(shell, environment);
 			DataOutputStream STDIN = new DataOutputStream(process.getOutputStream());
@@ -830,11 +848,14 @@ public class Shell {
 				if (environment.size() == 0) {
 					process = Runtime.getRuntime().exec(shell);
 				} else {
-					String[] env = new String[environment.size()];
+					Map<String, String> newEnvironment = new HashMap<String, String>();
+					newEnvironment.putAll(System.getenv());
+					newEnvironment.putAll(environment);
 					int i = 0;
-		            for (Map.Entry<String, String> entry : environment.entrySet()) {
-		                env[i] = entry.getKey() + "=" + entry.getValue();
-		                i++;
+		            String[] env = new String[newEnvironment.size()];
+		            for (Map.Entry<String, String> entry : newEnvironment.entrySet()) {
+		            	env[i] = entry.getKey() + "=" + entry.getValue();
+		                i++;		            
 		            }
 		            process = Runtime.getRuntime().exec(shell, env);
 				}
