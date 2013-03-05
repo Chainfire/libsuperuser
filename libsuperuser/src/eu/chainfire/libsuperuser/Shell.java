@@ -696,8 +696,11 @@ public class Shell {
 		 */
 		private void runNextCommand(boolean notifyIdle) {
 			// must always be called from a synchronized method
+
+			boolean running = isRunning();
+			if (!running) idle = true;
 			
-			if (idle && (commands.size() > 0)) {
+			if (running && idle && (commands.size() > 0)) {
 				Command command = commands.get(0);
 				commands.remove(0);
 				
@@ -958,11 +961,32 @@ public class Shell {
 		}
 		
 		/**
+		 * Is out shell still running ?
+		 * 
+		 * @return Shell running ?
+		 */
+		public boolean isRunning() {
+			try {
+				// if this throws, we're still running
+				process.exitValue();				
+				return false;
+			} catch (IllegalThreadStateException e) {				
+			}			
+			return true;
+		}
+		
+		/**
 		 * Have all commands completed executing ?
 		 * 
 		 * @return Shell idle ?
 		 */
 		public synchronized boolean isIdle() {
+			if (!isRunning()) {
+				idle = true;
+				synchronized(idleSync) {
+					idleSync.notifyAll();
+				}				
+			}
 			return idle;
 		}
 		
@@ -993,33 +1017,35 @@ public class Shell {
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 			}
 
-			synchronized (idleSync) {
-				while (!idle) {
-					try {
-						idleSync.wait();						
-					} catch (InterruptedException e) {
-						return false;
+			if (isRunning()) {
+				synchronized (idleSync) {
+					while (!idle) {
+						try {
+							idleSync.wait();						
+						} catch (InterruptedException e) {
+							return false;
+						}
 					}
 				}
-			}
 			
-			if (
+				if (
 					(handler != null) && 
 					(handler.getLooper() != null) && 
 					(handler.getLooper() != Looper.myLooper())
-			) {
-				// If the callbacks are posted to a different thread than this one, we can wait until
-				// all callbacks have called before returning. If we don't use a Handler at all, 
-				// the callbacks are already called before we get here. If we do use a Handler but
-				// we use the same Looper, waiting here would actually block the callbacks from being
-				// called
+				) {
+					// If the callbacks are posted to a different thread than this one, we can wait until
+					// all callbacks have called before returning. If we don't use a Handler at all, 
+					// the callbacks are already called before we get here. If we do use a Handler but
+					// we use the same Looper, waiting here would actually block the callbacks from being
+					// called
 				
-				synchronized (callbackSync) {
-					while (callbacks > 0) {
-						try {
-							callbackSync.wait();						
-						} catch (InterruptedException e) {
-							return false;
+					synchronized (callbackSync) {
+						while (callbacks > 0) {
+							try {
+								callbackSync.wait();						
+							} catch (InterruptedException e) {
+								return false;
+							}
 						}
 					}
 				}
