@@ -87,7 +87,7 @@ public class Shell {
 			// check if we're running in the main thread, and if so, crash if we're in debug mode,
 			// to let the developer know attention is needed here.
 			
-			if (Looper.myLooper() == Looper.getMainLooper()) {
+			if ((Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_COMMAND);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_COMMAND);
 			}
@@ -926,7 +926,7 @@ public class Shell {
 
 			// This method should not be called from the main thread unless the shell is idle
 			// and can be cleaned up with (minimal) waiting. Only throw in debug mode.
-			if (!_idle && BuildConfig.DEBUG && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (!_idle && BuildConfig.DEBUG && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 			}
@@ -1012,7 +1012,7 @@ public class Shell {
 		 * @return True if wait complete, false if wait interrupted
 		 */
 		public boolean waitForIdle() {
-			if (BuildConfig.DEBUG && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (BuildConfig.DEBUG && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 			}
