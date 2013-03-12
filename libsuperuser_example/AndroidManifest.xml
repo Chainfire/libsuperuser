@@ -7,6 +7,7 @@
         android:minSdkVersion="4"
         android:targetSdkVersion="15" />
 
+    <uses-permission android:name="android.permission.ACCESS_SUPERUSER"/>
 	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     
     <application
