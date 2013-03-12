@@ -87,7 +87,7 @@ public class Shell {
 			// check if we're running in the main thread, and if so, crash if we're in debug mode,
 			// to let the developer know attention is needed here.
 			
-			if (Looper.myLooper() == Looper.getMainLooper()) {
+			if ((Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_COMMAND);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_COMMAND);
 			}
@@ -696,8 +696,11 @@ public class Shell {
 		 */
 		private void runNextCommand(boolean notifyIdle) {
 			// must always be called from a synchronized method
+
+			boolean running = isRunning();
+			if (!running) idle = true;
 			
-			if (idle && (commands.size() > 0)) {
+			if (running && idle && (commands.size() > 0)) {
 				Command command = commands.get(0);
 				commands.remove(0);
 				
@@ -923,7 +926,7 @@ public class Shell {
 
 			// This method should not be called from the main thread unless the shell is idle
 			// and can be cleaned up with (minimal) waiting. Only throw in debug mode.
-			if (!_idle && BuildConfig.DEBUG && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (!_idle && BuildConfig.DEBUG && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 			}
@@ -958,11 +961,32 @@ public class Shell {
 		}
 		
 		/**
+		 * Is out shell still running ?
+		 * 
+		 * @return Shell running ?
+		 */
+		public boolean isRunning() {
+			try {
+				// if this throws, we're still running
+				process.exitValue();				
+				return false;
+			} catch (IllegalThreadStateException e) {				
+			}			
+			return true;
+		}
+		
+		/**
 		 * Have all commands completed executing ?
 		 * 
 		 * @return Shell idle ?
 		 */
 		public synchronized boolean isIdle() {
+			if (!isRunning()) {
+				idle = true;
+				synchronized(idleSync) {
+					idleSync.notifyAll();
+				}				
+			}
 			return idle;
 		}
 		
@@ -988,38 +1012,40 @@ public class Shell {
 		 * @return True if wait complete, false if wait interrupted
 		 */
 		public boolean waitForIdle() {
-			if (BuildConfig.DEBUG && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (BuildConfig.DEBUG && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 			}
 
-			synchronized (idleSync) {
-				while (!idle) {
-					try {
-						idleSync.wait();						
-					} catch (InterruptedException e) {
-						return false;
+			if (isRunning()) {
+				synchronized (idleSync) {
+					while (!idle) {
+						try {
+							idleSync.wait();						
+						} catch (InterruptedException e) {
+							return false;
+						}
 					}
 				}
-			}
 			
-			if (
+				if (
 					(handler != null) && 
 					(handler.getLooper() != null) && 
 					(handler.getLooper() != Looper.myLooper())
-			) {
-				// If the callbacks are posted to a different thread than this one, we can wait until
-				// all callbacks have called before returning. If we don't use a Handler at all, 
-				// the callbacks are already called before we get here. If we do use a Handler but
-				// we use the same Looper, waiting here would actually block the callbacks from being
-				// called
+				) {
+					// If the callbacks are posted to a different thread than this one, we can wait until
+					// all callbacks have called before returning. If we don't use a Handler at all, 
+					// the callbacks are already called before we get here. If we do use a Handler but
+					// we use the same Looper, waiting here would actually block the callbacks from being
+					// called
 				
-				synchronized (callbackSync) {
-					while (callbacks > 0) {
-						try {
-							callbackSync.wait();						
-						} catch (InterruptedException e) {
-							return false;
+					synchronized (callbackSync) {
+						while (callbacks > 0) {
+							try {
+								callbackSync.wait();						
+							} catch (InterruptedException e) {
+								return false;
+							}
 						}
 					}
 				}
