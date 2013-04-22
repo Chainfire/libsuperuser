@@ -245,24 +245,26 @@ public class Shell {
 			// this is only one of many ways this can be done
 			
 			List<String> ret = run(new String[] { 
-				"id",
-				"echo -EOC-"
+				"echo -BOC-",
+				"id"
 			});
 			if (ret == null) return false;
+			
+			boolean echo_seen = false;
 			
 			for (String line : ret) {
 				if (line.contains("uid=")) {
 					// id command is working, let's see if we are actually root
 					return line.contains("uid=0");
-				} else if (line.contains("-EOC-")) {
-					// if we end up here, the id command isn't present, but at
-					// least the su commands starts some kind of shell, let's
-					// hope it has root priviliges - no way to know without
-					// additional native binaries
-					return true;
+				} else if (line.contains("-BOC-")) {
+					// if we end up here, at least the su command starts some kind of shell, 
+					// let's hope it has root privileges - no way to know without additional 
+					// native binaries
+					echo_seen = true;
 				}
 			}
-			return false;
+			
+			return echo_seen;
 		}
 		
 		/**
