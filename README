@@ -1,4 +1,4 @@
-Exampe code for "How-To SU"
+Example code for "How-To SU"
 
 For further details, see:
 
