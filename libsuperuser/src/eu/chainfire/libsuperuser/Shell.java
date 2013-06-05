@@ -50,7 +50,7 @@ public class Shell {
 	 */
 	@Deprecated
 	public static List<String> run(String shell, String[] commands, boolean wantSTDERR) {
-		return run(shell, commands, wantSTDERR);
+		return run(shell, commands, null, wantSTDERR);
 	}
 	
 	/**
