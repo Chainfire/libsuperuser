@@ -869,6 +869,9 @@ public class Shell {
 				STDOUT = new StreamGobbler(shell.toUpperCase() + "-", process.getInputStream(), new OnLineListener() {					
 					@Override
 					public void onLine(String line) {
+						if (command == null) {
+							return;
+						}
 						if (line.startsWith(command.marker)) {
 							try {
 								lastExitCode = Integer.valueOf(line.substring(command.marker.length() + 1), 10);
@@ -885,6 +888,9 @@ public class Shell {
 				STDERR = new StreamGobbler(shell.toUpperCase() + "*", process.getErrorStream(), new OnLineListener() {					
 					@Override
 					public void onLine(String line) {
+						if (command == null) {
+							return;
+						}
 						if (line.startsWith(command.marker)) {
 							lastMarkerSTDERR = command.marker;
 							processMarker();
