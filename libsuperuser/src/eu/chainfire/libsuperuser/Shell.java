@@ -521,9 +521,9 @@ public class Shell {
 	 * but rather appended to the output. STDOUT and STDERR are thus not guaranteed to 
 	 * be in the correct order in the output.</p>
 	 * 
-	 * <p>Note as well that this code will intentionally crash when run in debug mode 
-	 * from the main thread of the application. You should always execute shell 
-	 * commands from a background thread.</p>
+	 * <p>Note as well that the close() and waitForIdle() methods will intentionally
+	 * crash when run in debug mode from the main thread of the application.  Any blocking
+	 * call should be run from a background thread.</p>
 	 * 
 	 * <p>When in debug mode, the code will also excessively log the commands passed to
 	 * and the output returned from the shell.</p>
