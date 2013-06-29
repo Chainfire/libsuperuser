@@ -746,7 +746,8 @@ public class Shell {
 		 * Processes a STDOUT/STDERR line containing an end/exitCode marker
 		 */
 		private synchronized void processMarker() {
-			if (command.marker.equals(lastMarkerSTDOUT) && (command.marker.equals(lastMarkerSTDERR))) {				
+			if (lastMarkerSTDOUT != null && command.marker.equals(lastMarkerSTDOUT) &&
+				lastMarkerSTDERR != null && command.marker.equals(lastMarkerSTDERR)) {
 				if (command.onCommandResultListener != null) {
 					if (buffer != null) {
 						if (handler != null) {
