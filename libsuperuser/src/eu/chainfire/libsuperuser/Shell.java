@@ -722,6 +722,37 @@ public class Shell {
 		}
 		
 		/**
+		 * <p>Test whether the shell is available.  On a root shell, check the uid.</p>
+		 * 
+		 * <p>The thread on which the callback executes is dependent on various factors, see {@link Shell.Interactive} for further details</p>
+		 * 
+		 * <p>If available() is used, the caller is expected to wait for the result prior to queuing other commands.</p>
+		 * 
+		 * @param code User-defined value passed back to the callback
+		 * @param onCommandResultListener Callback to be called on completion.  exitCode will be 0 on success or nonzero on failure.
+		 */
+		public synchronized void available(int code, OnCommandResultListener onCommandResultListener) {
+			final OnCommandResultListener userCallback = onCommandResultListener;
+			final int userCode = code;
+			final int oldWatchdogTimeout = watchdogTimeout;
+
+			// Safe value to allow time for Superuser dialog
+			// Once this succeeds, a lower value can be used for subsequent commands
+			watchdogTimeout = 15;
+
+			addCommand(Shell.availableTestCommands, code, new OnCommandResultListener() {
+				public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+					watchdogTimeout = oldWatchdogTimeout;
+					if (exitCode != 0 || Shell.parseAvailableResult(output, shell.equals("su")) != true) {
+						userCallback.onCommandResult(userCode, -1, output);
+					} else {
+						userCallback.onCommandResult(userCode, 0, output);
+					}
+				}
+			});
+		}
+
+		/**
 		 * Run the next command if any and if ready, signals idle state if no commands left
 		 */
 		private void runNextCommand() {
