@@ -326,7 +326,7 @@ public class Shell {
 	}
 	
 	/**
-	 * Internal class to store command block proprties
+	 * Internal class to store command block properties
 	 */
 	private static class Command {
 		private static int commandCounter = 0;
@@ -549,7 +549,7 @@ public class Shell {
 	 * threads that should be blocked as little as possible, as blocking them may in rare 
 	 * cases pause the native process or even create a deadlock.</p>
 	 * 
-	 * <p>The main thread must certainly has a Looper, thus if you call {@link Shell.Builder#open()}
+	 * <p>The main thread must certainly have a Looper, thus if you call {@link Shell.Builder#open()}
 	 * from the main thread, a handler will (by default) be auto-created, and all the callbacks
 	 * will be called on the main thread. While this is often convenient and easy to code with,
 	 * you should be aware that if your callbacks are 'expensive' to execute, this may negatively
@@ -1005,7 +1005,7 @@ public class Shell {
 		 * If however a Handler is used but this method is called from the same thread as associated 
 		 * with the Handler's Looper, there is no way to know.</p>
 		 * 
-		 * <p>In practise this means that in most simple cases all callbacks will have completed when this
+		 * <p>In practice this means that in most simple cases all callbacks will have completed when this
 		 * method returns, but if you actually depend on this behavior, you should make certain this is 
 		 * indeed the case.</p> 
 		 * 
