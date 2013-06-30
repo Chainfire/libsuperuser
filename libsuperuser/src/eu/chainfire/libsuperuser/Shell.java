@@ -340,8 +340,14 @@ public class Shell {
 		 */
 		public void onCommandResult(int commandCode, int exitCode, List<String> output);
 
+		// for any onCommandResult callback
 		public static final int WATCHDOG_EXIT = -1;
 		public static final int SHELL_DIED = -2;
+
+		// for Interactive.open() callbacks only
+		public static final int SHELL_EXEC_FAILED = -3;
+		public static final int SHELL_WRONG_UID = -4;
+		public static final int SHELL_RUNNING = 0;
 	}
 	
 	/**
@@ -542,7 +548,17 @@ public class Shell {
 		/**
 		 * Construct a {@link Shell.Interactive} instance, and start the shell
 		 */
-		public Interactive open() { return new Interactive(this); }
+		public Interactive open() { return new Interactive(this, null); }
+
+		/**
+		 * Construct a {@link Shell.Interactive} instance, try to start the shell, and
+		 * call onCommandResultListener to report success or failure
+		 * 
+		 * @param onCommandResultListener Callback to return shell open status
+		 */
+		public Interactive open(OnCommandResultListener onCommandResultListener) {
+			return new Interactive(this, onCommandResultListener);
+		}
 	}
 	
 	/**
@@ -631,7 +647,7 @@ public class Shell {
 		 * 
 		 * @param builder Builder class to take values from
 		 */
-		private Interactive(Builder builder) {
+		private Interactive(final Builder builder, final OnCommandResultListener onCommandResultListener) {
 			autoHandler = builder.autoHandler;
 			shell = builder.shell;
 			wantSTDERR = builder.wantSTDERR;
@@ -649,8 +665,29 @@ public class Shell {
 			} else {
 				handler = builder.handler;
 			}
-			
-			open();
+
+			boolean ret = open();
+			if (onCommandResultListener == null) {
+				return;
+			} else if (ret == false) {
+				onCommandResultListener.onCommandResult(0, OnCommandResultListener.SHELL_EXEC_FAILED, null);
+				return;
+			}
+
+			// Allow up to 60 seconds for SuperSU/Superuser dialog, then enable the user-specified
+			// timeout for all subsequent operations
+			watchdogTimeout = 60;
+			addCommand(Shell.availableTestCommands, 0, new OnCommandResultListener() {
+				public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+					if (exitCode == OnCommandResultListener.SHELL_RUNNING &&
+							Shell.parseAvailableResult(output, shell.equals("su")) != true) {
+						// shell is up, but it's brain-damaged
+						exitCode = OnCommandResultListener.SHELL_WRONG_UID;
+					}
+					watchdogTimeout = builder.watchdogTimeout;
+					onCommandResultListener.onCommandResult(0, exitCode, output);
+				}
+			});
 		}
 				
 		@Override
