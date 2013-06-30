@@ -870,34 +870,38 @@ public class Shell {
 				STDOUT = new StreamGobbler(shell.toUpperCase() + "-", process.getInputStream(), new OnLineListener() {					
 					@Override
 					public void onLine(String line) {
-						if (command == null) {
-							return;
-						}
-						if (line.startsWith(command.marker)) {
-							try {
-								lastExitCode = Integer.valueOf(line.substring(command.marker.length() + 1), 10);
-							} catch (Exception e) {						
+						synchronized (Interactive.this) {
+							if (command == null) {
+								return;
 							}
-							lastMarkerSTDOUT = command.marker;										
-							processMarker();
-						} else {
-							addBuffer(line);					
-							processLine(line, onSTDOUTLineListener);
+							if (line.startsWith(command.marker)) {
+								try {
+									lastExitCode = Integer.valueOf(line.substring(command.marker.length() + 1), 10);
+								} catch (Exception e) {
+								}
+								lastMarkerSTDOUT = command.marker;
+								processMarker();
+							} else {
+								addBuffer(line);
+								processLine(line, onSTDOUTLineListener);
+							}
 						}
 					}
 				});
 				STDERR = new StreamGobbler(shell.toUpperCase() + "*", process.getErrorStream(), new OnLineListener() {					
 					@Override
 					public void onLine(String line) {
-						if (command == null) {
-							return;
-						}
-						if (line.startsWith(command.marker)) {
-							lastMarkerSTDERR = command.marker;
-							processMarker();
-						} else {
-							if (wantSTDERR) addBuffer(line);					
-							processLine(line, onSTDERRLineListener);
+						synchronized (Interactive.this) {
+							if (command == null) {
+								return;
+							}
+							if (line.startsWith(command.marker)) {
+								lastMarkerSTDERR = command.marker;
+								processMarker();
+							} else {
+								if (wantSTDERR) addBuffer(line);
+								processLine(line, onSTDERRLineListener);
+							}
 						}
 					}
 				});
