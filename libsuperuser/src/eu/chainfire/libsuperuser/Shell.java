@@ -165,7 +165,40 @@ public class Shell {
 		if (BuildConfig.DEBUG) Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
 		return res;
 	}
-	
+
+	protected static String[] availableTestCommands = new String[] {
+		"echo -BOC-",
+		"id"
+	};
+
+	/**
+	 * See if the shell is alive, and if so, check the UID
+	 * 
+	 * @param ret Standard output from running availableTestCommands
+	 * @param checkForRoot true if we are expecting this shell to be running as root
+	 * @return true on success, false on error
+	 */
+	protected static boolean parseAvailableResult(List<String> ret, boolean checkForRoot) {
+		if (ret == null) return false;
+
+		// this is only one of many ways this can be done
+		boolean echo_seen = false;
+
+		for (String line : ret) {
+			if (line.contains("uid=")) {
+				// id command is working, let's see if we are actually root
+				return !checkForRoot || line.contains("uid=0");
+			} else if (line.contains("-BOC-")) {
+				// if we end up here, at least the su command starts some kind of shell,
+				// let's hope it has root privileges - no way to know without additional
+				// native binaries
+				echo_seen = true;
+			}
+		}
+
+		return echo_seen;
+	}
+
 	/**
 	 * This class provides utility functions to easily execute commands using SH
 	 */
@@ -246,27 +279,8 @@ public class Shell {
 		public static boolean available() {
 			// this is only one of many ways this can be done
 			
-			List<String> ret = run(new String[] { 
-				"echo -BOC-",
-				"id"
-			});
-			if (ret == null) return false;
-			
-			boolean echo_seen = false;
-			
-			for (String line : ret) {
-				if (line.contains("uid=")) {
-					// id command is working, let's see if we are actually root
-					return line.contains("uid=0");
-				} else if (line.contains("-BOC-")) {
-					// if we end up here, at least the su command starts some kind of shell, 
-					// let's hope it has root privileges - no way to know without additional 
-					// native binaries
-					echo_seen = true;
-				}
-			}
-			
-			return echo_seen;
+			List<String> ret = run(Shell.availableTestCommands);
+			return Shell.parseAvailableResult(ret, true);
 		}
 		
 		/**
