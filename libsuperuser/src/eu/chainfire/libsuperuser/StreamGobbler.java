@@ -87,7 +87,7 @@ public class StreamGobbler extends Thread {
 		try {
 			String line = null;
 			while ((line = reader.readLine()) != null) {
-				if (BuildConfig.DEBUG) Debug.log(String.format("[%s] %s", shell, line));
+				Debug.logOutput(String.format("[%s] %s", shell, line));
 				if (writer != null) writer.add(line);
 				if (listener != null) listener.onLine(line);
 			}

@@ -22,14 +22,75 @@ import android.util.Log;
  * Utility class that intentionally does nothing when not in debug mode
  */
 public class Debug {
+
+	private static String TAG = "libsuperuser";
+
+	private static boolean disableSanityChecks = false;
+	private static boolean disableGeneralLogging = false;
+	private static boolean disableCommandLogging = false;
+	private static boolean disableOutputLogging = false;
+
+	public static void setDisableSanityChecks(boolean disableSanityChecks) {
+		Debug.disableSanityChecks = disableSanityChecks;
+	}
+
+	public static void setDisableGeneralLogging(boolean disableGeneralLogging) {
+		Debug.disableGeneralLogging = disableGeneralLogging;
+	}
+
+	public static void setDisableCommandLogging(boolean disableCommandLogging) {
+		Debug.disableCommandLogging = disableCommandLogging;
+	}
+
+	public static void setDisableOutputLogging(boolean disableOutputLogging) {
+		Debug.disableOutputLogging = disableOutputLogging;
+	}
+
+	private static void logCommon(String message) {
+		if (BuildConfig.DEBUG) {
+			Log.d(TAG, "[libsuperuser]" + (!message.startsWith("[") && !message.startsWith(" ") ? " " : "") + message);
+		}
+	}
+
 	/**
-	 * Log a message if we are in debug mode
+	 * <p>Log a "general" message</p>
+	 * 
+	 * <p>These messages are infrequent and mostly occur at startup/shutdown or on error</p>
 	 * 
 	 * @param message The message to log
 	 */
 	public static void log(String message) {
-		if (BuildConfig.DEBUG) {
-			Log.d("libsuperuser", "[libsuperuser]" + (!message.startsWith("[") && !message.startsWith(" ") ? " " : "") + message);
-		}
+		if (!disableGeneralLogging) logCommon(message);
+	}
+
+	/**
+	 * <p>Log a "per-command" message</p>
+	 * 
+	 * <p>This could produce a lot of output if the client runs many commands in the session</p>
+	 * 
+	 * @param message The message to log
+	 */
+	public static void logCommand(String message) {
+		if (!disableCommandLogging) logCommon(message);
+	}
+
+	/**
+	 * <p>Log a line of stdout/stderr output</p>
+	 * 
+	 * <p>This could produce a lot of output if the shell commands are noisy</p>
+	 * 
+	 * @param message The message to log
+	 */
+	public static void logOutput(String message) {
+		if (!disableOutputLogging) logCommon(message);
+	}
+
+	/**
+	 * See if the builtin sanity checks (e.g. "don't run SU from the main thread") are enabled
+	 * 
+	 * @return true if enabled
+	 */
+	public static boolean sanityChecksEnabled() {
+		return !disableSanityChecks && BuildConfig.DEBUG;
 	}
 }
