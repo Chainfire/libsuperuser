@@ -85,7 +85,7 @@ public class Shell {
 	public static List<String> run(String shell, String[] commands, String[] environment, boolean wantSTDERR) {
 		String shellUpper = shell.toUpperCase();
 		
-		if (BuildConfig.DEBUG) {
+		if (Debug.sanityChecksEnabled()) {
 			// check if we're running in the main thread, and if so, crash if we're in debug mode,
 			// to let the developer know attention is needed here.
 			
@@ -93,9 +93,8 @@ public class Shell {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_COMMAND);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_COMMAND);
 			}
-			
-			Debug.log(String.format("[%s%%] START", shellUpper));			
 		}
+		Debug.logCommand(String.format("[%s%%] START", shellUpper));
 		
 		List<String> res = Collections.synchronizedList(new ArrayList<String>());
 		
@@ -128,7 +127,7 @@ public class Shell {
 			STDOUT.start();
 			STDERR.start();
 			for (String write : commands) {
-				Debug.log(String.format("[%s+] %s", shellUpper, write));
+				Debug.logCommand(String.format("[%s+] %s", shellUpper, write));
 				STDIN.writeBytes(write + "\n");
 				STDIN.flush();
 			}
@@ -162,7 +161,7 @@ public class Shell {
 			res = null;
 		}
 			
-		Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
+		Debug.logCommand(String.format("[%s%%] END", shell.toUpperCase()));
 		return res;
 	}
 
@@ -540,6 +539,20 @@ public class Shell {
 		public Builder setWatchdogTimeout(int watchdogTimeout) { this.watchdogTimeout = watchdogTimeout; return this; }
 
 		/**
+		 * <p>Enable/disable reduced logcat output</p>
+		 * 
+		 * <p>Note that this is a global setting</p>
+		 * 
+		 * @param useMinimal true for reduced output, false for full output
+		 * @return This Builder object for method chaining
+		 */
+		public Builder setMinimalLogging(boolean useMinimal) {
+			Debug.setDisableCommandLogging(useMinimal);
+			Debug.setDisableOutputLogging(useMinimal);
+			return this;
+		}
+
+		/**
 		 * Construct a {@link Shell.Interactive} instance, and start the shell
 		 */
 		public Interactive open() { return new Interactive(this); }
@@ -654,7 +667,7 @@ public class Shell {
 				
 		@Override
 		protected void finalize() throws Throwable {			
-			if (!closed && BuildConfig.DEBUG) {
+			if (!closed && Debug.sanityChecksEnabled()) {
 				// waste of resources
 				Debug.log(ShellNotClosedException.EXCEPTION_NOT_CLOSED);
 				throw new ShellNotClosedException();												
@@ -843,7 +856,7 @@ public class Shell {
 						idle = false;
 						this.command = command;
 						for (String write : command.commands) {
-							Debug.log(String.format("[%s+] %s", shell.toUpperCase(), write));
+							Debug.logCommand(String.format("[%s+] %s", shell.toUpperCase(), write));
 							STDIN.writeBytes(write + "\n");						
 						}
 						STDIN.writeBytes("echo " + command.marker + " $?\n");
@@ -1062,7 +1075,7 @@ public class Shell {
 
 			// This method should not be called from the main thread unless the shell is idle
 			// and can be cleaned up with (minimal) waiting. Only throw in debug mode.
-			if (!_idle && BuildConfig.DEBUG && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (!_idle && Debug.sanityChecksEnabled() && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_NOT_IDLE);
 			}
@@ -1149,7 +1162,7 @@ public class Shell {
 		 * @return True if wait complete, false if wait interrupted
 		 */
 		public boolean waitForIdle() {
-			if (BuildConfig.DEBUG && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
+			if (Debug.sanityChecksEnabled() && (Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper())) {
 				Debug.log(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 				throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
 			}
