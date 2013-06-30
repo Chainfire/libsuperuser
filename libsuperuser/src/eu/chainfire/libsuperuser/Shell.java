@@ -128,7 +128,7 @@ public class Shell {
 			STDOUT.start();
 			STDERR.start();
 			for (String write : commands) {
-				if (BuildConfig.DEBUG) Debug.log(String.format("[%s+] %s", shellUpper, write));
+				Debug.log(String.format("[%s+] %s", shellUpper, write));
 				STDIN.writeBytes(write + "\n");
 				STDIN.flush();
 			}
@@ -162,7 +162,7 @@ public class Shell {
 			res = null;
 		}
 			
-		if (BuildConfig.DEBUG) Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
+		Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
 		return res;
 	}
 
@@ -869,7 +869,7 @@ public class Shell {
 						this.command = command;
 						startWatchdog();
 						for (String write : command.commands) {
-							if (BuildConfig.DEBUG) Debug.log(String.format("[%s+] %s", shell.toUpperCase(), write));
+							Debug.log(String.format("[%s+] %s", shell.toUpperCase(), write));
 							STDIN.writeBytes(write + "\n");						
 						}
 						STDIN.writeBytes("echo " + command.marker + " $?\n");
@@ -994,7 +994,7 @@ public class Shell {
 		 * @return Opened successfully ?
 		 */
 		private synchronized boolean open() {
-			if (BuildConfig.DEBUG) Debug.log(String.format("[%s%%] START", shell.toUpperCase()));
+			Debug.log(String.format("[%s%%] START", shell.toUpperCase()));
 			
 			try {
 				// setup our process, retrieve STDIN stream, and STDOUT/STDERR gobblers
@@ -1118,7 +1118,7 @@ public class Shell {
 				// this should really be re-thrown
 			}
 			
-			if (BuildConfig.DEBUG) Debug.log(String.format("[%s%%] END", shell.toUpperCase()));			
+			Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
 		}
 
  		/**
