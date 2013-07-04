@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -83,7 +84,7 @@ public class Shell {
 	 * @return Output of the commands, or null in case of an error
 	 */
 	public static List<String> run(String shell, String[] commands, String[] environment, boolean wantSTDERR) {
-		String shellUpper = shell.toUpperCase();
+		String shellUpper = shell.toUpperCase(Locale.ENGLISH);
 		
 		if (Debug.sanityChecksEnabled()) {
 			// check if we're running in the main thread, and if so, crash if we're in debug mode,
@@ -161,7 +162,7 @@ public class Shell {
 			res = null;
 		}
 			
-		Debug.logCommand(String.format("[%s%%] END", shell.toUpperCase()));
+		Debug.logCommand(String.format("[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
 		return res;
 	}
 
@@ -882,7 +883,7 @@ public class Shell {
 						this.command = command;
 						startWatchdog();
 						for (String write : command.commands) {
-							Debug.logCommand(String.format("[%s+] %s", shell.toUpperCase(), write));
+							Debug.logCommand(String.format("[%s+] %s", shell.toUpperCase(Locale.ENGLISH), write));
 							STDIN.writeBytes(write + "\n");						
 						}
 						STDIN.writeBytes("echo " + command.marker + " $?\n");
@@ -1007,7 +1008,7 @@ public class Shell {
 		 * @return Opened successfully ?
 		 */
 		private synchronized boolean open() {
-			Debug.log(String.format("[%s%%] START", shell.toUpperCase()));
+			Debug.log(String.format("[%s%%] START", shell.toUpperCase(Locale.ENGLISH)));
 			
 			try {
 				// setup our process, retrieve STDIN stream, and STDOUT/STDERR gobblers
@@ -1027,7 +1028,7 @@ public class Shell {
 				}
 			
 				STDIN = new DataOutputStream(process.getOutputStream());
-				STDOUT = new StreamGobbler(shell.toUpperCase() + "-", process.getInputStream(), new OnLineListener() {					
+				STDOUT = new StreamGobbler(shell.toUpperCase(Locale.ENGLISH) + "-", process.getInputStream(), new OnLineListener() {					
 					@Override
 					public void onLine(String line) {
 						synchronized (Interactive.this) {
@@ -1048,7 +1049,7 @@ public class Shell {
 						}
 					}
 				});
-				STDERR = new StreamGobbler(shell.toUpperCase() + "*", process.getErrorStream(), new OnLineListener() {					
+				STDERR = new StreamGobbler(shell.toUpperCase(Locale.ENGLISH) + "*", process.getErrorStream(), new OnLineListener() {					
 					@Override
 					public void onLine(String line) {
 						synchronized (Interactive.this) {
@@ -1131,7 +1132,7 @@ public class Shell {
 				// this should really be re-thrown
 			}
 			
-			Debug.log(String.format("[%s%%] END", shell.toUpperCase()));
+			Debug.log(String.format("[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
 		}
 
  		/**
