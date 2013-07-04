@@ -25,7 +25,7 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.widget.EditText;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {		
 	private class Startup extends AsyncTask<Void, Void, Void> {
@@ -90,7 +90,7 @@ public class MainActivity extends Activity {
 					sb.append(line).append((char)10);
 				}
 			}
-			((EditText)findViewById(R.id.text)).setText(sb.toString());
+			((TextView)findViewById(R.id.text)).setText(sb.toString());
 		}		
 	}
 	
