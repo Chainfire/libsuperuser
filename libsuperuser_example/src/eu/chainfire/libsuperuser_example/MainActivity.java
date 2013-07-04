@@ -25,7 +25,10 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.Intent;
+import android.view.View;
 import android.widget.TextView;
+import android.widget.Button;
 
 public class MainActivity extends Activity {		
 	private class Startup extends AsyncTask<Void, Void, Void> {
@@ -98,7 +101,27 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        
+
+        // mode switch button
+        Button button = (Button)findViewById(R.id.switch_button);
+        button.setText(R.string.enable_interactive_mode);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+            	startActivity(new Intent(v.getContext(), InteractiveActivity.class));
+            	finish();
+            }
+        });
+
+        // refresh button
+        ((Button)findViewById(R.id.refresh_button)).
+        	setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    (new Startup()).setContext(v.getContext()).execute();
+                }
+            });
+
         // Let's do some background stuff
         (new Startup()).setContext(this).execute();
     }
