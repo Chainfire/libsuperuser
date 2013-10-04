@@ -1145,7 +1145,10 @@ public class Shell {
 				STDIN.close();
 			} catch (IOException e) {
 			}
-			process.destroy();
+			try {
+				process.destroy();
+			} catch (Exception e) {				
+			}
 		}
 
 		/**
