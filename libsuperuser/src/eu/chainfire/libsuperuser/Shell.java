@@ -1137,7 +1137,7 @@ public class Shell {
 		 * Hopefully the StreamGobblers will croak on their own when the other side of
 		 * the pipe is closed.
 		 */
-		private synchronized void kill() {
+		public synchronized void kill() {
 			running = false;
 			closed = true;
 
