@@ -784,7 +784,8 @@ public class Shell {
 			final int exitCode;
 
 			if (watchdog == null) return;
-
+			if (watchdogTimeout == 0) return;
+			
 			if (!isRunning()) {
 				exitCode = OnCommandResultListener.SHELL_DIED;
 				Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
