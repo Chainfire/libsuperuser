@@ -127,10 +127,10 @@ public class Shell {
 			STDERR.start();
 			for (String write : commands) {
 				Debug.logCommand(String.format("[%s+] %s", shellUpper, write));
-				STDIN.writeBytes(write + "\n");
+				STDIN.write((write + "\n").getBytes("UTF-8"));
 				STDIN.flush();
 			}
-			STDIN.writeBytes("exit\n");
+			STDIN.write("exit\n".getBytes("UTF-8"));
 			STDIN.flush();
 			
 			// wait for our process to finish, while we gobble away in the background
@@ -882,10 +882,10 @@ public class Shell {
 						startWatchdog();
 						for (String write : command.commands) {
 							Debug.logCommand(String.format("[%s+] %s", shell.toUpperCase(Locale.ENGLISH), write));
-							STDIN.writeBytes(write + "\n");						
+							STDIN.write((write + "\n").getBytes("UTF-8"));						
 						}
-						STDIN.writeBytes("echo " + command.marker + " $?\n");
-						STDIN.writeBytes("echo " + command.marker + " >&2\n");
+						STDIN.write(("echo " + command.marker + " $?\n").getBytes("UTF-8"));
+						STDIN.write(("echo " + command.marker + " >&2\n").getBytes("UTF-8"));
 						STDIN.flush();
 					} catch (IOException e) {
 					}
@@ -1106,7 +1106,7 @@ public class Shell {
 			if (!_idle) waitForIdle();
 			
 			try {
-				STDIN.writeBytes("exit\n");
+				STDIN.write(("exit\n").getBytes("UTF-8"));
 				STDIN.flush();
 			
 				// wait for our process to finish, while we gobble away in the background
