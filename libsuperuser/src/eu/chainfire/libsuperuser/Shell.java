@@ -17,7 +17,10 @@
 package eu.chainfire.libsuperuser;
 
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -337,6 +340,72 @@ public class Shell {
 	        
 	        return shell.equals("su");
 	    }
+	    
+        /**
+         * Constructs a shell command to start a su shell using the supplied
+         * uid and SELinux context. This is can be an expensive operation, 
+         * consider caching the result.
+         * 
+         * @param uid Uid to use (0 == root)
+         * @param context (SELinux) context name to use or null
+         * @return Shell command
+         */
+        public static String shell(int uid, String context) {
+            // su[ --context <context>][ <uid>]
+            String shell = "su";
+            
+            // First known firmware with SELinux built-in was a 4.2 (17) leak 
+            if ((context != null) && (android.os.Build.VERSION.SDK_INT >= 17)) {
+                Boolean enforcing = null;
+                
+                // Detect enforcing through sysfs, not always present
+                if (enforcing == null) {
+                    File f = new File("/sys/fs/selinux/enforce");
+                    if (f.exists()) {
+                        try {
+                            InputStream is = new FileInputStream("/sys/fs/selinux/enforce");
+                            try {
+                                enforcing = (is.read() == '1');                            
+                            } finally {
+                                is.close();
+                            }
+                        } catch (Exception e) {
+                        }
+                    }
+                }
+                
+                // 4.4+ builds are enforcing by default, take the gamble
+                if (enforcing == null) {
+                    enforcing = (android.os.Build.VERSION.SDK_INT >= 19);
+                }
+
+                // Switching to a context in permissive mode is not generally 
+                // useful aside from audit testing, but we want to avoid
+                // switching the context due to the increased chance of issues. 
+                if (enforcing) {
+                    String display = version(false);
+                    String internal = version(true);
+                    
+                    // We only know the format for SuperSU v1.90+ right now
+                    if (
+                            (display != null) && 
+                            (internal != null) && 
+                            (display.endsWith("SUPERSU")) && 
+                            (Integer.valueOf(internal) >= 190)
+                    ) {
+                        shell = String.format(Locale.ENGLISH, "%s --context %s", shell, context);
+                    }
+                }
+            }
+            
+            // Most su binaries support the "su <uid>" format, but in case
+            // they don't, lets skip it for the default 0 (root) case
+            if (uid > 0) {
+                shell = String.format(Locale.ENGLISH, "%s %d", shell, uid);
+            }
+            
+            return shell;
+        }	    
 	}
 	
 	/**
