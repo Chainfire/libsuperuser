@@ -38,6 +38,28 @@ import eu.chainfire.libsuperuser.StreamGobbler.OnLineListener;
  * Class providing functionality to execute commands in a (root) shell 
  */
 public class Shell {
+    /**
+     * Attempts to deduce if the shell command refers to a su shell
+     *  
+     * @param shell Shell command to run
+     * @return Shell command appears to be su
+     */
+    public static boolean isShellSU(String shell) {
+        // Strip parameters
+        int pos = shell.indexOf(' ');
+        if (pos >= 0) {
+            shell = shell.substring(0, pos);
+        }
+        
+        // Strip path
+        pos = shell.lastIndexOf('/');
+        if (pos >= 0) {
+            shell = shell.substring(pos + 1);
+        }
+        
+        return shell.equals("su");
+    }
+    
 	/**
 	 * <p>Runs commands using the supplied shell, and returns the output, or null in
 	 * case of errors.</p>
@@ -149,7 +171,7 @@ public class Shell {
 			process.destroy();
 			
 			// in case of su, 255 usually indicates access denied
-			if (shell.equals("su") && (process.exitValue() == 255)) {
+			if (isShellSU(shell) && (process.exitValue() == 255)) {
 				res = null;
 			}			
 		} catch (IOException e) {
