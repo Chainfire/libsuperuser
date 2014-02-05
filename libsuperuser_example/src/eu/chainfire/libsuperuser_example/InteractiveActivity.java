@@ -31,79 +31,79 @@ import android.widget.Button;
 import android.widget.TextView;
 
 public class InteractiveActivity extends Activity {
-	
-	private static Shell.Interactive rootSession;
 
-	private void updateResultStatus(boolean suAvailable, List<String> suResult) {
-		StringBuilder sb = (new StringBuilder()).
-				append("Root? ").append(suAvailable ? "Yes" : "No").append((char)10).
-				append((char)10);
-			if (suResult != null) {
-				for (String line : suResult) {
-					sb.append(line).append((char)10);
-				}
-			}
-			((TextView)findViewById(R.id.text)).setText(sb.toString());
-	}
+    private static Shell.Interactive rootSession;
 
-	private void reportError(String error) {
-		List<String> errorInfo = new ArrayList<String>();
-		errorInfo.add(error);
-		updateResultStatus(false, errorInfo);
-		rootSession = null;
-	}
+    private void updateResultStatus(boolean suAvailable, List<String> suResult) {
+        StringBuilder sb = (new StringBuilder()).
+                append("Root? ").append(suAvailable ? "Yes" : "No").append((char)10).
+                append((char)10);
+        if (suResult != null) {
+            for (String line : suResult) {
+                sb.append(line).append((char)10);
+            }
+        }
+        ((TextView)findViewById(R.id.text)).setText(sb.toString());
+    }
 
-	private void sendRootCommand() {
-		rootSession.addCommand(new String[] { "id", "date", "ls -l /" }, 0,
-				new Shell.OnCommandResultListener() {
-			public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-				if (exitCode < 0) {
-					reportError("Error executing commands: exitCode " + exitCode);
-				} else {
-					updateResultStatus(true, output);
-				}
-			}
-		});
-	}
+    private void reportError(String error) {
+        List<String> errorInfo = new ArrayList<String>();
+        errorInfo.add(error);
+        updateResultStatus(false, errorInfo);
+        rootSession = null;
+    }
 
-	private void openRootShell() {
-		if (rootSession != null) {
-			sendRootCommand();
-		} else {
-			// We're creating a progress dialog here because we want the user to wait.
-			// If in your app your user can just continue on with clicking other things,
-			// don't do the dialog thing.
-			final ProgressDialog dialog = new ProgressDialog(this);
-			dialog.setTitle("Please wait");
-			dialog.setMessage("Requesting root privilege...");
-			dialog.setIndeterminate(true);
-			dialog.setCancelable(false);
-			dialog.show();
+    private void sendRootCommand() {
+        rootSession.addCommand(new String[] { "id", "date", "ls -l /" }, 0,
+                new Shell.OnCommandResultListener() {
+            public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+                if (exitCode < 0) {
+                    reportError("Error executing commands: exitCode " + exitCode);
+                } else {
+                    updateResultStatus(true, output);
+                }
+            }
+        });
+    }
 
-			// start the shell in the background and keep it alive as long as the app is running
-	        rootSession = new Shell.Builder().
-	        		useSU().
-	        		setWantSTDERR(true).
-	        		setWatchdogTimeout(5).
-	        		setMinimalLogging(true).
-	        		open(new Shell.OnCommandResultListener() {
+    private void openRootShell() {
+        if (rootSession != null) {
+            sendRootCommand();
+        } else {
+            // We're creating a progress dialog here because we want the user to wait.
+            // If in your app your user can just continue on with clicking other things,
+            // don't do the dialog thing.
+            final ProgressDialog dialog = new ProgressDialog(this);
+            dialog.setTitle("Please wait");
+            dialog.setMessage("Requesting root privilege...");
+            dialog.setIndeterminate(true);
+            dialog.setCancelable(false);
+            dialog.show();
 
-	        	// Callback to report whether the shell was successfully started up 
-	        	@Override
-	        	public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-	        		// note: this will FC if you rotate the phone while the dialog is up
-	        		dialog.dismiss();
+            // start the shell in the background and keep it alive as long as the app is running
+            rootSession = new Shell.Builder().
+                    useSU().
+                    setWantSTDERR(true).
+                    setWatchdogTimeout(5).
+                    setMinimalLogging(true).
+                    open(new Shell.OnCommandResultListener() {
 
-	        		if (exitCode != Shell.OnCommandResultListener.SHELL_RUNNING) {
-	        			reportError("Error opening root shell: exitCode " + exitCode);
-	        		} else {
-	        			// Shell is up: send our first request 
-	        			sendRootCommand();
-	        		}
-	        	}
-	        });
-		}
-	}
+                        // Callback to report whether the shell was successfully started up 
+                        @Override
+                        public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+                            // note: this will FC if you rotate the phone while the dialog is up
+                            dialog.dismiss();
+
+                            if (exitCode != Shell.OnCommandResultListener.SHELL_RUNNING) {
+                                reportError("Error opening root shell: exitCode " + exitCode);
+                            } else {
+                                // Shell is up: send our first request 
+                                sendRootCommand();
+                            }
+                        }
+                    });
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -116,19 +116,19 @@ public class InteractiveActivity extends Activity {
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-            	startActivity(new Intent(v.getContext(), MainActivity.class));
-            	finish();
+                startActivity(new Intent(v.getContext(), MainActivity.class));
+                finish();
             }
         });
 
         // refresh button
         ((Button)findViewById(R.id.refresh_button)).
-        	setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                	openRootShell();
-                }
-            });
+        setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openRootShell();
+            }
+        });
 
         openRootShell();
     }

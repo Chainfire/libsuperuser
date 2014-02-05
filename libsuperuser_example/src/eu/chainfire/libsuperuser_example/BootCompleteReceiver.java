@@ -26,19 +26,19 @@ import android.content.Intent;
  * in a background thread 
  */
 public class BootCompleteReceiver extends BroadcastReceiver{
-	@Override
-	public void onReceive(Context context, Intent intent) {
-		// What many beginners don't realize is that BroadcastReceivers like these
-		// usually run in the application's main thread, and can thus generate
-		// ANRs. This is increasingly likely with the BOOT_COMPLETED receiver, as
-		// the system is likely very busy when this receiver is called.
-		 
-		// In this example we are starting our MyIntentService to actually do the
-		// work we want to happen, not only because "su" should specifically NEVER 
-		// be called from a BroadcastReceiver, but also because you should be doing 
-		// this even if you aren't calling "su". It's a good practise, and using 
-		// IntentService is really easy.
-		
-		BackgroundIntentService.performAction(context, BackgroundIntentService.ACTION_BOOT_COMPLETE);
-	}
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        // What many beginners don't realize is that BroadcastReceivers like these
+        // usually run in the application's main thread, and can thus generate
+        // ANRs. This is increasingly likely with the BOOT_COMPLETED receiver, as
+        // the system is likely very busy when this receiver is called.
+
+        // In this example we are starting our MyIntentService to actually do the
+        // work we want to happen, not only because "su" should specifically NEVER 
+        // be called from a BroadcastReceiver, but also because you should be doing 
+        // this even if you aren't calling "su". It's a good practise, and using 
+        // IntentService is really easy.
+
+        BackgroundIntentService.performAction(context, BackgroundIntentService.ACTION_BOOT_COMPLETE);
+    }
 }
