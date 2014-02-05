@@ -113,10 +113,10 @@ public class Shell {
 				}
 				int i = 0;
 				environment = new String[newEnvironment.size()];
-	            for (Map.Entry<String, String> entry : newEnvironment.entrySet()) {
-	            	environment[i] = entry.getKey() + "=" + entry.getValue();
-	                i++;
-	            }
+				for (Map.Entry<String, String> entry : newEnvironment.entrySet()) {
+				    environment[i] = entry.getKey() + "=" + entry.getValue();
+				    i++;
+				}
 			}
 			
 			// setup our process, retrieve STDIN stream, and STDOUT/STDERR gobblers
@@ -145,7 +145,7 @@ public class Shell {
 			// lets be safe and do this on Android as well
 			try { 
 				STDIN.close();
-			} catch (IOException e) { 				
+			} catch (IOException e) {
 			}
 			STDOUT.join();
 			STDERR.join();
@@ -296,14 +296,12 @@ public class Shell {
 		 * @return String containing the su version or null
 		 */
 		public static String version(boolean internal) {
-			// we add an additional exit call, because the command
-			// line options are not available in all su versions,
-			// thus potentially launching a shell instead
-			
-			List<String> ret = Shell.run("sh", new String[] {
-				internal ? "su -V" : "su -v",
-				"exit"
-			}, null, false);
+			List<String> ret = Shell.run(
+				internal ? "su -V" : "su -v", 
+				new String[] { }, 
+				null,
+				false
+			);
 			if (ret == null) return null;
 				
 			for (String line : ret) {
