@@ -49,53 +49,53 @@ import android.os.Bundle;
  * could have been a lot shorter.
  */
 public class BackgroundIntentService extends IntentService {
-	// you could provide more options here, should you need them
-	public static final String ACTION_BOOT_COMPLETE 		= "boot_complete";
-	
-	public static void performAction(Context context, String action) {
-		performAction(context, action, null);		
-	}
+    // you could provide more options here, should you need them
+    public static final String ACTION_BOOT_COMPLETE 		= "boot_complete";
 
-	public static void performAction(Context context, String action, Bundle extras) {
-		// this is utility call to easy starting the service and performing a task
-		// pass parameters in an bundle to be added to the intent as extras
-		// See BootCompleteReceiver.java
-		
-		if ((context == null) || (action == null) || action.equals("")) return;
-						
-		Intent svc = new Intent(context, BackgroundIntentService.class);
-		svc.setAction(action);
-		if (extras != null)	svc.putExtras(extras);
-		context.startService(svc);
-	}
-					
-	public BackgroundIntentService() {
-		// If you forget this one, the app will crash
-		super("BackgroundIntentService");
-	}
+    public static void performAction(Context context, String action) {
+        performAction(context, action, null);		
+    }
 
-	@Override
-	protected void onHandleIntent(Intent intent) {
-		String action = intent.getAction();		
-		if ((action == null) || (action.equals(""))) return;
-		
-		if (action.equals(ACTION_BOOT_COMPLETE)) {
-			onBootComplete();
-		}
-		// you can define more options here... pass parameters through the "extra" values
-	}
-	
-	protected void onBootComplete() {
-		// We are running in a background thread here!
-		
-		// This would crash (when debugging) if it was called from the main thread: 
-		Shell.SU.run("ls -l /");
-		
-		// Let's toast that we're done, using the work-arounds and utility function in
-		// out Application class. Without those modifications there would be a very high 
-		// chance of crashing the app in various Android versions. The modifications are
-		// simple and easily ported to your own Application class, if you can't use the 
-		// one from libsuperuser.
-		Application.toast(this, "This toast will self-destruct in five seconds");
-	}	
+    public static void performAction(Context context, String action, Bundle extras) {
+        // this is utility call to easy starting the service and performing a task
+        // pass parameters in an bundle to be added to the intent as extras
+        // See BootCompleteReceiver.java
+
+        if ((context == null) || (action == null) || action.equals("")) return;
+
+        Intent svc = new Intent(context, BackgroundIntentService.class);
+        svc.setAction(action);
+        if (extras != null)	svc.putExtras(extras);
+        context.startService(svc);
+    }
+
+    public BackgroundIntentService() {
+        // If you forget this one, the app will crash
+        super("BackgroundIntentService");
+    }
+
+    @Override
+    protected void onHandleIntent(Intent intent) {
+        String action = intent.getAction();		
+        if ((action == null) || (action.equals(""))) return;
+
+        if (action.equals(ACTION_BOOT_COMPLETE)) {
+            onBootComplete();
+        }
+        // you can define more options here... pass parameters through the "extra" values
+    }
+
+    protected void onBootComplete() {
+        // We are running in a background thread here!
+
+        // This would crash (when debugging) if it was called from the main thread: 
+        Shell.SU.run("ls -l /");
+
+        // Let's toast that we're done, using the work-arounds and utility function in
+        // out Application class. Without those modifications there would be a very high 
+        // chance of crashing the app in various Android versions. The modifications are
+        // simple and easily ported to your own Application class, if you can't use the 
+        // one from libsuperuser.
+        Application.toast(this, "This toast will self-destruct in five seconds");
+    }	
 }
