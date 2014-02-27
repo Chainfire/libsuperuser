@@ -32,7 +32,6 @@ import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
