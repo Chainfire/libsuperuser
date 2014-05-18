@@ -404,6 +404,17 @@ public class Shell {
 
             return shell;
         }
+        
+        /**
+         * Constructs a shell command to start a su shell connected to
+         * mount master daemon, to perform public mounts on
+         * Android 4.3+ (or 4.2+ in SELinux enforcing mode)
+         * 
+         * @return Shell command
+         */
+        public static String shellMountMaster() {
+            return "su --mount-master";
+        }
     }
 
     private interface OnResult {
