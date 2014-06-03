@@ -1253,6 +1253,9 @@ public class Shell {
          * @return Shell running ?
          */
         public boolean isRunning() {
+        	if (process == null) {
+        		return false;
+        	}
             try {
                 // if this throws, we're still running
                 process.exitValue();				
