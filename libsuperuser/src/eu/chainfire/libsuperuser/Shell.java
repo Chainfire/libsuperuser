@@ -268,6 +268,9 @@ public class Shell {
      */
     public static class SU {
         private static Boolean isSELinuxEnforcing = null;
+        private static String[] suVersion = new String[] {
+                null, null
+        };
 
         /**
          * Runs command as root (if available) and return output
@@ -330,34 +333,49 @@ public class Shell {
          * Note that su binary version and GUI (APK) version can be completely
          * different.
          * </p>
+         * <p>
+         * This function caches its result to improve performance on multiple
+         * calls
+         * </p>
          * 
          * @param internal Request human-readable version or application
          *            internal version
          * @return String containing the su version or null
          */
-        public static String version(boolean internal) {
-            List<String> ret = Shell.run(
-                    internal ? "su -V" : "su -v",
-                    new String[] {},
-                    null,
-                    false
-                    );
-            if (ret == null)
-                return null;
+        public static synchronized String version(boolean internal) {
+            int idx = internal ? 0 : 1;
+            if (suVersion[idx] == null) {
+                String version = null;
 
-            for (String line : ret) {
-                if (!internal) {
-                    if (line.contains("."))
-                        return line;
-                } else {
-                    try {
-                        if (Integer.parseInt(line) > 0)
-                            return line;
-                    } catch (NumberFormatException e) {
+                List<String> ret = Shell.run(
+                        internal ? "su -V" : "su -v",
+                        new String[] {},
+                        null,
+                        false
+                        );
+
+                if (ret != null) {
+                    for (String line : ret) {
+                        if (!internal) {
+                            if (line.contains(".")) {
+                                version = line;
+                                break;
+                            }
+                        } else {
+                            try {
+                                if (Integer.parseInt(line) > 0) {
+                                    version = line;
+                                    break;
+                                }
+                            } catch (NumberFormatException e) {
+                            }
+                        }
                     }
                 }
+
+                suVersion[idx] = version;
             }
-            return null;
+            return suVersion[idx];
         }
 
         /**
@@ -429,9 +447,10 @@ public class Shell {
         }
 
         /**
-         * Detect if SELinux is set to enforcing
+         * Detect if SELinux is set to enforcing, caches result
          * 
-         * @return true if SELinux set to enforcing, or false in the case of permissive or not present
+         * @return true if SELinux set to enforcing, or false in the case of
+         *         permissive or not present
          */
         public static synchronized boolean isSELinuxEnforcing() {
             if (isSELinuxEnforcing == null) {
