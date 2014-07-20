@@ -1,9 +1,12 @@
+.gradle
 libsuperuser/.classpath
 libsuperuser/.project
 libsuperuser/.settings
 libsuperuser/bin
 libsuperuser/gen
+libsuperuser/build
 libsuperuser_example/bin
 libsuperuser_example/gen
+libsuperuser_example/build
 libsuperuser_example/proguard
 libsuperuser_example/dexguard
