@@ -489,6 +489,23 @@ public class Shell {
             }
             return isSELinuxEnforcing;
         }
+        
+        /**
+         * <p>
+         * Clears results cached by isSELinuxEnforcing() and
+         * version(boolean internal) calls.
+         * </p>
+         * <p>
+         * Most apps should never need to call this, as neither
+         * enforcing status nor su version is likely to change
+         * on a running device - though it is not impossible.
+         * </p>
+         */
+        public static synchronized void clearCachedResults() {
+            isSELinuxEnforcing = null;
+            suVersion[0] = null;
+            suVersion[1] = null;
+        }
     }
 
     /**
