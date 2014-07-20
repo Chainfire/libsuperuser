@@ -443,7 +443,10 @@ public class Shell {
          * @return Shell command
          */
         public static String shellMountMaster() {
-            return "su --mount-master";
+            if (android.os.Build.VERSION.SDK_INT >= 17) {
+                return "su --mount-master";
+            }
+            return "su";
         }
 
         /**
