@@ -32,6 +32,8 @@ import android.widget.TextView;
 
 public class InteractiveActivity extends Activity {
 
+    TextView outputText;
+
     private static Shell.Interactive rootSession;
 
     private void updateResultStatus(boolean suAvailable, List<String> suResult) {
@@ -43,7 +45,14 @@ public class InteractiveActivity extends Activity {
                 sb.append(line).append((char)10);
             }
         }
-        ((TextView)findViewById(R.id.text)).setText(sb.toString());
+        outputText.setText(sb.toString());
+    }
+
+    private void appendLineToOutput(String line) {
+        StringBuilder sb = (new StringBuilder()).
+                append(line).
+                append((char)10);
+        outputText.append(sb.toString());
     }
 
     private void reportError(String error) {
@@ -61,7 +70,41 @@ public class InteractiveActivity extends Activity {
                     reportError("Error executing commands: exitCode " + exitCode);
                 } else {
                     updateResultStatus(true, output);
+
+                    appendLineToOutput("----------");
+                    appendLineToOutput("ls -l /");
                 }
+            }
+        });
+
+        rootSession.addCommand(new String[] {"ls -l /"}, 1, new Shell.OnCommandLineListener() {
+            @Override
+            public void onCommandResult(int commandCode, int exitCode) {
+                if (exitCode < 0) {
+                    reportError("Error executing commands: exitCode " + exitCode);
+                } else {
+                    appendLineToOutput("----------");
+                    appendLineToOutput("ls -l /sdcard");
+                }
+            }
+
+            @Override
+            public void onLine(String line) {
+                appendLineToOutput(line);
+            }
+        });
+
+        rootSession.addCommand(new String[] {"ls -l /sdcard"}, 2, new Shell.OnCommandLineListener() {
+            @Override
+            public void onCommandResult(int commandCode, int exitCode) {
+                if (exitCode < 0) {
+                    reportError("Error executing commands: exitCode " + exitCode);
+                }
+            }
+
+            @Override
+            public void onLine(String line) {
+                appendLineToOutput(line);
             }
         });
     }
@@ -109,6 +152,8 @@ public class InteractiveActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        outputText = (TextView)findViewById(R.id.text);
 
         // mode switch button
         Button button = (Button)findViewById(R.id.switch_button);
