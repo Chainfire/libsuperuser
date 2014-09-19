@@ -31,6 +31,13 @@
                 <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </receiver>
+        
+        <receiver android:name=".HideOverlaysReceiver" >
+            <intent-filter>
+                <action android:name="eu.chainfire.supersu.action.HIDE_OVERLAYS" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+        </receiver>
 
         <service android:name=".BackgroundIntentService" />
     </application>
