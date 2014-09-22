@@ -103,8 +103,8 @@ public class Shell {
 
         if (Debug.getSanityChecksEnabledEffective() && Debug.onMainThread()) {
             // check if we're running in the main thread, and if so, crash if
-            // we're in debug mode,
-            // to let the developer know attention is needed here.
+            // we're in debug mode, to let the developer know attention is
+            // needed here.
 
             Debug.log(ShellOnMainThreadException.EXCEPTION_COMMAND);
             throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_COMMAND);
@@ -149,20 +149,24 @@ public class Shell {
                 STDIN.write((write + "\n").getBytes("UTF-8"));
                 STDIN.flush();
             }
-            STDIN.write("exit\n".getBytes("UTF-8"));
-            STDIN.flush();
+            try {
+                STDIN.write("exit\n".getBytes("UTF-8"));
+                STDIN.flush();
+            } catch (IOException e) {
+                // happens if the script already contains the exit line - if
+                // there were a more serious issue, it would already have thrown
+                // an exception while writing the script to STDIN
+            }
 
             // wait for our process to finish, while we gobble away in the
             // background
             process.waitFor();
 
             // make sure our threads are done gobbling, our streams are closed,
-            // and the process is
-            // destroyed - while the latter two shouldn't be needed in theory,
-            // and may even produce
-            // warnings, in "normal" Java they are required for guaranteed
-            // cleanup of resources, so
-            // lets be safe and do this on Android as well
+            // and the process is destroyed - while the latter two shouldn't be
+            // needed in theory, and may even produce warnings, in "normal" Java
+            // they are required for guaranteed cleanup of resources, so lets be
+            // safe and do this on Android as well
             try {
                 STDIN.close();
             } catch (IOException e) {
