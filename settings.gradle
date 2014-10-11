@@ -1,2 +1,1 @@
-include ':libsuperuser'
-include ':libsuperuser_example'
+include ':libsuperuser', ':libsuperuser_example'
