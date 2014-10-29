@@ -1,12 +1,12 @@
-apply plugin: 'android-library'
+apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 19
-    buildToolsVersion "19.0.0"
+    compileSdkVersion 21
+    buildToolsVersion "21.0.2"
 
     defaultConfig {
         minSdkVersion 4
-        targetSdkVersion 19
+        targetSdkVersion 21
     }
     
     sourceSets {
@@ -19,10 +19,5 @@ android {
             res.srcDirs = ['res']
             assets.srcDirs = ['assets']
         }
-    }
-
-    // Do not abort build if lint finds errors
-    lintOptions {
-        abortOnError false
     }
 }
