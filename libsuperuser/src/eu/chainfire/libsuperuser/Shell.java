@@ -353,7 +353,7 @@ public class Shell {
 
                 List<String> ret = Shell.run(
                         internal ? "su -V" : "su -v",
-                        new String[] {},
+                        new String[] { "exit" },
                         null,
                         false
                         );
