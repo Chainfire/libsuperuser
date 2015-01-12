@@ -10,8 +10,6 @@ Gradle:
 
 ```
 dependencies {
-    compile 'eu.chainfire:libsuperuser:201501111220'
+    compile 'eu.chainfire:libsuperuser:1.0.0.+'
 }
 ```
-
-(See [BinTray jCenter](https://bintray.com/chainfire/maven/libsuperuser/view) for the latest version number, in case I forget to update this file)
