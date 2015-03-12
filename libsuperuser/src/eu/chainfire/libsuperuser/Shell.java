@@ -1030,30 +1030,27 @@ public class Shell {
                 handler = builder.handler;
             }
 
-            boolean ret = open();
-            if (onCommandResultListener == null) {
-                return;
-            } else if (ret == false) {
-                onCommandResultListener.onCommandResult(0,
-                        OnCommandResultListener.SHELL_EXEC_FAILED, null);
-                return;
+            if (onCommandResultListener != null) {
+                // Allow up to 60 seconds for SuperSU/Superuser dialog, then enable
+                // the user-specified timeout for all subsequent operations
+                watchdogTimeout = 60;
+                commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener() {
+                    public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+                        if (exitCode == OnCommandResultListener.SHELL_RUNNING &&
+                                Shell.parseAvailableResult(output, Shell.SU.isSU(shell)) != true) {
+                            // shell is up, but it's brain-damaged
+                            exitCode = OnCommandResultListener.SHELL_WRONG_UID;
+                        }
+                        watchdogTimeout = builder.watchdogTimeout;
+                        onCommandResultListener.onCommandResult(0, exitCode, output);
+                    }
+                }, null));
             }
 
-            // Allow up to 60 seconds for SuperSU/Superuser dialog, then enable
-            // the user-specified
-            // timeout for all subsequent operations
-            watchdogTimeout = 60;
-            addCommand(Shell.availableTestCommands, 0, new OnCommandResultListener() {
-                public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-                    if (exitCode == OnCommandResultListener.SHELL_RUNNING &&
-                            Shell.parseAvailableResult(output, Shell.SU.isSU(shell)) != true) {
-                        // shell is up, but it's brain-damaged
-                        exitCode = OnCommandResultListener.SHELL_WRONG_UID;
-                    }
-                    watchdogTimeout = builder.watchdogTimeout;
-                    onCommandResultListener.onCommandResult(0, exitCode, output);
-                }
-            });
+            if (!open() && (onCommandResultListener != null)) {
+                onCommandResultListener.onCommandResult(0,
+                        OnCommandResultListener.SHELL_EXEC_FAILED, null);
+            }
         }
 
         @Override
