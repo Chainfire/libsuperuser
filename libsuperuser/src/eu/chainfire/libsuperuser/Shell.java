@@ -40,6 +40,7 @@ import eu.chainfire.libsuperuser.StreamGobbler.OnLineListener;
 /**
  * Class providing functionality to execute commands in a (root) shell
  */
+@SuppressWarnings("unused")
 public class Shell {
     /**
      * <p>
@@ -48,10 +49,10 @@ public class Shell {
      * </p>
      * <p>
      * This method is deprecated and only provided for backwards compatibility.
-     * Use {@link #run(String, String[], String[], boolean)} instead, and see
+     * Use {@link #run(String, String[], String[], boolean, boolean)} instead, and see
      * that same method for usage notes.
      * </p>
-     * 
+     *
      * @param shell The shell to use for executing the commands
      * @param commands The commands to execute
      * @param wantSTDERR Return STDERR in the output ?
@@ -59,7 +60,18 @@ public class Shell {
      */
     @Deprecated
     public static List<String> run(String shell, String[] commands, boolean wantSTDERR) {
-        return run(shell, commands, null, wantSTDERR);
+        return run(shell, commands, null, wantSTDERR, true);
+    }
+
+    /**
+     * This method is deprecated and only provided for backwards compatibility.
+     * Use {@link #run(String, String[], String[], boolean, boolean)} instead, and see
+     * that same method for usage notes.
+     */
+    @Deprecated
+    public static List<String> run(String shell, String[] commands, String[] environment,
+            boolean wantSTDERR) {
+        return run(shell, commands, environment, wantSTDERR, true);
     }
 
     /**
@@ -89,16 +101,17 @@ public class Shell {
      * something like <em>'ls -lR /'</em> will probably have you run out of
      * memory.
      * </p>
-     * 
+     *
      * @param shell The shell to use for executing the commands
      * @param commands The commands to execute
      * @param environment List of all environment variables (in 'key=value'
      *            format) or null for defaults
      * @param wantSTDERR Return STDERR in the output ?
-     * @return Output of the commands, or null in case of an error
+     * @param wantSTDOUT Return STDOUT in the output ?
+     * @return Output of the commands. May be null if no output required or in case of an error
      */
     public static List<String> run(String shell, String[] commands, String[] environment,
-            boolean wantSTDERR) {
+            boolean wantSTDERR, boolean wantSTDOUT) {
         String shellUpper = shell.toUpperCase(Locale.ENGLISH);
 
         if (Debug.getSanityChecksEnabledEffective() && Debug.onMainThread()) {
@@ -111,7 +124,10 @@ public class Shell {
         }
         Debug.logCommand(String.format("[%s%%] START", shellUpper));
 
-        List<String> res = Collections.synchronizedList(new ArrayList<String>());
+        List<String> res = null;
+        if (wantSTDERR || wantSTDOUT) {
+            res = Collections.synchronizedList(new ArrayList<String>());
+        }
 
         try {
             // Combine passed environment with system environment
@@ -136,14 +152,19 @@ public class Shell {
             // gobblers
             Process process = Runtime.getRuntime().exec(shell, environment);
             DataOutputStream STDIN = new DataOutputStream(process.getOutputStream());
-            StreamGobbler STDOUT = new StreamGobbler(shellUpper + "-", process.getInputStream(),
-                    res);
-            StreamGobbler STDERR = new StreamGobbler(shellUpper + "*", process.getErrorStream(),
-                    wantSTDERR ? res : null);
 
             // start gobbling and write our commands to the shell
-            STDOUT.start();
-            STDERR.start();
+            StreamGobbler STDOUT = null;
+            if (wantSTDOUT) {
+                STDOUT = new StreamGobbler(shellUpper + "-", process.getInputStream(), res);
+                STDOUT.start();
+            }
+            StreamGobbler STDERR = null;
+            if (wantSTDERR) {
+                STDERR = new StreamGobbler(shellUpper + "*", process.getErrorStream(), res);
+                STDERR.start();
+            }
+
             try {
                 for (String write : commands) {
                     Debug.logCommand(String.format("[%s+] %s", shellUpper, write));
@@ -176,10 +197,14 @@ public class Shell {
             // safe and do this on Android as well
             try {
                 STDIN.close();
-            } catch (IOException e) {
+            } catch (IOException ignored) {
             }
-            STDOUT.join();
-            STDERR.join();
+            if (STDOUT != null) {
+                STDOUT.join();
+            }
+            if (STDERR != null) {
+                STDERR.join();
+            }
             process.destroy();
 
             // in case of su, 255 usually indicates access denied
@@ -205,7 +230,7 @@ public class Shell {
 
     /**
      * See if the shell is alive, and if so, check the UID
-     * 
+     *
      * @param ret Standard output from running availableTestCommands
      * @param checkForRoot true if we are expecting this shell to be running as
      *            root
@@ -241,34 +266,34 @@ public class Shell {
     public static class SH {
         /**
          * Runs command and return output
-         * 
+         *
          * @param command The command to run
          * @return Output of the command, or null in case of an error
          */
         public static List<String> run(String command) {
             return Shell.run("sh", new String[] {
                     command
-            }, null, false);
+            }, null, false, true);
         }
 
         /**
          * Runs commands and return output
-         * 
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null in case of an error
          */
         public static List<String> run(List<String> commands) {
-            return Shell.run("sh", commands.toArray(new String[commands.size()]), null, false);
+            return Shell.run("sh", commands.toArray(new String[commands.size()]), null, false, true);
         }
 
         /**
          * Runs commands and return output
-         * 
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null in case of an error
          */
         public static List<String> run(String[] commands) {
-            return Shell.run("sh", commands, null, false);
+            return Shell.run("sh", commands, null, false, true);
         }
     }
 
@@ -285,7 +310,7 @@ public class Shell {
 
         /**
          * Runs command as root (if available) and return output
-         * 
+         *
          * @param command The command to run
          * @return Output of the command, or null if root isn't available or in
          *         case of an error
@@ -293,36 +318,36 @@ public class Shell {
         public static List<String> run(String command) {
             return Shell.run("su", new String[] {
                     command
-            }, null, false);
+            }, null, false, true);
         }
 
         /**
          * Runs commands as root (if available) and return output
-         * 
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null if root isn't available or in
          *         case of an error
          */
         public static List<String> run(List<String> commands) {
-            return Shell.run("su", commands.toArray(new String[commands.size()]), null, false);
+            return Shell.run("su", commands.toArray(new String[commands.size()]), null, false, true);
         }
 
         /**
          * Runs commands as root (if available) and return output
-         * 
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null if root isn't available or in
          *         case of an error
          */
         public static List<String> run(String[] commands) {
-            return Shell.run("su", commands, null, false);
+            return Shell.run("su", commands, null, false, true);
         }
 
         /**
          * Detects whether or not superuser access is available, by checking the
          * output of the "id" command if available, checking if a shell runs at
          * all otherwise
-         * 
+         *
          * @return True if superuser access available
          */
         public static boolean available() {
@@ -348,7 +373,7 @@ public class Shell {
          * This function caches its result to improve performance on multiple
          * calls
          * </p>
-         * 
+         *
          * @param internal Request human-readable version or application
          *            internal version
          * @return String containing the su version or null
@@ -362,7 +387,8 @@ public class Shell {
                         internal ? "su -V" : "su -v",
                         new String[] { "exit" },
                         null,
-                        false
+                        false,
+                        true
                         );
 
                 if (ret != null) {
@@ -378,7 +404,7 @@ public class Shell {
                                     version = line;
                                     break;
                                 }
-                            } catch (NumberFormatException e) {
+                            } catch (NumberFormatException ignored) {
                             }
                         }
                     }
@@ -391,7 +417,7 @@ public class Shell {
 
         /**
          * Attempts to deduce if the shell command refers to a su shell
-         * 
+         *
          * @param shell Shell command to run
          * @return Shell command appears to be su
          */
@@ -415,7 +441,7 @@ public class Shell {
          * Constructs a shell command to start a su shell using the supplied uid
          * and SELinux context. This is can be an expensive operation, consider
          * caching the result.
-         * 
+         *
          * @param uid Uid to use (0 == root)
          * @param context (SELinux) context name to use or null
          * @return Shell command
@@ -450,7 +476,7 @@ public class Shell {
          * Constructs a shell command to start a su shell connected to mount
          * master daemon, to perform public mounts on Android 4.3+ (or 4.2+ in
          * SELinux enforcing mode)
-         * 
+         *
          * @return Shell command
          */
         public static String shellMountMaster() {
@@ -462,7 +488,7 @@ public class Shell {
 
         /**
          * Detect if SELinux is set to enforcing, caches result
-         * 
+         *
          * @return true if SELinux set to enforcing, or false in the case of
          *         permissive or not present
          */
@@ -484,7 +510,7 @@ public class Shell {
                                 } finally {
                                     is.close();
                                 }
-                            } catch (Exception e) {
+                            } catch (Exception ignored) {
                             }
                         }
                     }
@@ -552,7 +578,7 @@ public class Shell {
          * <p>
          * See {@link Shell.Interactive} for threading details
          * </p>
-         * 
+         *
          * @param commandCode Value previously supplied to addCommand
          * @param exitCode Exit code of the last command in the block
          * @param output All output generated by the command block
@@ -580,7 +606,7 @@ public class Shell {
          * <p>
          * See {@link Shell.Interactive} for threading details
          * </p>
-         * 
+         *
          * @param commandCode Value previously supplied to addCommand
          * @param exitCode Exit code of the last command in the block
          */
@@ -632,7 +658,7 @@ public class Shell {
          * See {@link Shell.Interactive} for further details on threading and
          * handlers
          * </p>
-         * 
+         *
          * @param handler Handler to use
          * @return This Builder object for method chaining
          */
@@ -649,7 +675,7 @@ public class Shell {
          * See {@link Shell.Interactive} for further details on threading and
          * handlers
          * </p>
-         * 
+         *
          * @param autoHandler Auto-create handler ?
          * @return This Builder object for method chaining
          */
@@ -661,7 +687,7 @@ public class Shell {
         /**
          * Set shell binary to use. Usually "sh" or "su", do not use a full path
          * unless you have a good reason to
-         * 
+         *
          * @param shell Shell to use
          * @return This Builder object for method chaining
          */
@@ -672,7 +698,7 @@ public class Shell {
 
         /**
          * Convenience function to set "sh" as used shell
-         * 
+         *
          * @return This Builder object for method chaining
          */
         public Builder useSH() {
@@ -681,7 +707,7 @@ public class Shell {
 
         /**
          * Convenience function to set "su" as used shell
-         * 
+         *
          * @return This Builder object for method chaining
          */
         public Builder useSU() {
@@ -690,7 +716,7 @@ public class Shell {
 
         /**
          * Set if error output should be appended to command block result output
-         * 
+         *
          * @param wantSTDERR Want error output ?
          * @return This Builder object for method chaining
          */
@@ -701,7 +727,7 @@ public class Shell {
 
         /**
          * Add or update an environment variable
-         * 
+         *
          * @param key Key of the environment variable
          * @param value Value of the environment variable
          * @return This Builder object for method chaining
@@ -713,7 +739,7 @@ public class Shell {
 
         /**
          * Add or update environment variables
-         * 
+         *
          * @param addEnvironment Map of environment variables
          * @return This Builder object for method chaining
          */
@@ -724,7 +750,7 @@ public class Shell {
 
         /**
          * Add a command to execute
-         * 
+         *
          * @param command Command to execute
          * @return This Builder object for method chaining
          */
@@ -740,7 +766,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param command Command to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandResultListener Callback to be called on completion
@@ -755,7 +781,7 @@ public class Shell {
 
         /**
          * Add commands to execute
-         * 
+         *
          * @param commands Commands to execute
          * @return This Builder object for method chaining
          */
@@ -772,7 +798,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandResultListener Callback to be called on completion
@@ -787,7 +813,7 @@ public class Shell {
 
         /**
          * Add commands to execute
-         * 
+         *
          * @param commands Commands to execute
          * @return This Builder object for method chaining
          */
@@ -804,7 +830,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandResultListener Callback to be called on completion
@@ -825,7 +851,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param onLineListener Callback to be called for each line
          * @return This Builder object for method chaining
          */
@@ -842,7 +868,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param onLineListener Callback to be called for each line
          * @return This Builder object for method chaining
          */
@@ -865,7 +891,7 @@ public class Shell {
          * session is out of sync with the shell process. The caller should
          * close the current session and open a new one.
          * </p>
-         * 
+         *
          * @param watchdogTimeout Timeout, in seconds; 0 to disable
          * @return This Builder object for method chaining
          */
@@ -881,7 +907,7 @@ public class Shell {
          * <p>
          * Note that this is a global setting
          * </p>
-         * 
+         *
          * @param useMinimal true for reduced output, false for full output
          * @return This Builder object for method chaining
          */
@@ -900,7 +926,7 @@ public class Shell {
         /**
          * Construct a {@link Shell.Interactive} instance, try to start the
          * shell, and call onCommandResultListener to report success or failure
-         * 
+         *
          * @param onCommandResultListener Callback to return shell open status
          */
         public Interactive open(OnCommandResultListener onCommandResultListener) {
@@ -995,8 +1021,8 @@ public class Shell {
         private volatile int callbacks = 0;
         private volatile int watchdogCount;
 
-        private Object idleSync = new Object();
-        private Object callbackSync = new Object();
+        private final Object idleSync = new Object();
+        private final Object callbackSync = new Object();
 
         private volatile int lastExitCode = 0;
         private volatile String lastMarkerSTDOUT = null;
@@ -1006,7 +1032,7 @@ public class Shell {
 
         /**
          * The only way to create an instance: Shell.Builder::open()
-         * 
+         *
          * @param builder Builder class to take values from
          */
         private Interactive(final Builder builder,
@@ -1037,7 +1063,7 @@ public class Shell {
                 commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener() {
                     public void onCommandResult(int commandCode, int exitCode, List<String> output) {
                         if (exitCode == OnCommandResultListener.SHELL_RUNNING &&
-                                Shell.parseAvailableResult(output, Shell.SU.isSU(shell)) != true) {
+                                !Shell.parseAvailableResult(output, SU.isSU(shell))) {
                             // shell is up, but it's brain-damaged
                             exitCode = OnCommandResultListener.SHELL_WRONG_UID;
                         }
@@ -1065,7 +1091,7 @@ public class Shell {
 
         /**
          * Add a command to execute
-         * 
+         *
          * @param command Command to execute
          */
         public void addCommand(String command) {
@@ -1080,7 +1106,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param command Command to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandResultListener Callback to be called on completion
@@ -1102,7 +1128,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param command Command to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandLineListener Callback
@@ -1115,7 +1141,7 @@ public class Shell {
 
         /**
          * Add commands to execute
-         * 
+         *
          * @param commands Commands to execute
          */
         public void addCommand(List<String> commands) {
@@ -1131,7 +1157,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandResultListener Callback to be called on completion
@@ -1152,7 +1178,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandLineListener Callback
@@ -1164,7 +1190,7 @@ public class Shell {
 
         /**
          * Add commands to execute
-         * 
+         *
          * @param commands Commands to execute
          */
         public void addCommand(String[] commands) {
@@ -1180,7 +1206,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandResultListener Callback to be called on completion
@@ -1202,7 +1228,7 @@ public class Shell {
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
          * </p>
-         * 
+         *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
          * @param onCommandLineListener Callback
@@ -1286,7 +1312,7 @@ public class Shell {
 
         /**
          * Run the next command if any and if ready
-         * 
+         *
          * @param notifyIdle signals idle state if no commands left ?
          */
         private void runNextCommand(boolean notifyIdle) {
@@ -1326,7 +1352,7 @@ public class Shell {
                         STDIN.write(("echo " + command.marker + " $?\n").getBytes("UTF-8"));
                         STDIN.write(("echo " + command.marker + " >&2\n").getBytes("UTF-8"));
                         STDIN.flush();
-                    } catch (IOException e) {
+                    } catch (IOException ignored) {
                     }
                 } else {
                     runNextCommand(false);
@@ -1362,7 +1388,7 @@ public class Shell {
 
         /**
          * Process a normal STDOUT/STDERR line
-         * 
+         *
          * @param line Line to process
          * @param listener Callback to call or null
          */
@@ -1391,7 +1417,7 @@ public class Shell {
 
         /**
          * Add line to internal buffer
-         * 
+         *
          * @param line Line to add
          */
         private synchronized void addBuffer(String line) {
@@ -1459,7 +1485,7 @@ public class Shell {
         /**
          * Internal call that launches the shell, starts gobbling, and starts
          * executing commands. See {@link Shell.Interactive}
-         * 
+         *
          * @return Opened successfully ?
          */
         private synchronized boolean open() {
@@ -1579,7 +1605,7 @@ public class Shell {
                 } catch (IOException e) {
                     if (e.getMessage().contains("EPIPE")) {
                         // we're not running a shell, the shell closed STDIN,
-                        // the script already contained the exit command, etc.                        
+                        // the script already contained the exit command, etc.
                     } else {
                         throw e;
                     }
@@ -1597,7 +1623,7 @@ public class Shell {
                 try {
                     STDIN.close();
                 } catch (IOException e) {
-                    // STDIN going missing is no reason to abort 
+                    // STDIN going missing is no reason to abort
                 }
                 STDOUT.join();
                 STDERR.join();
@@ -1623,17 +1649,17 @@ public class Shell {
 
             try {
                 STDIN.close();
-            } catch (IOException e) {
+            } catch (IOException ignored) {
             }
             try {
                 process.destroy();
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
         }
 
         /**
          * Is our shell still running ?
-         * 
+         *
          * @return Shell running ?
          */
         public boolean isRunning() {
@@ -1644,14 +1670,14 @@ public class Shell {
                 // if this throws, we're still running
                 process.exitValue();
                 return false;
-            } catch (IllegalThreadStateException e) {
+            } catch (IllegalThreadStateException ignored) {
             }
             return true;
         }
 
         /**
          * Have all commands completed executing ?
-         * 
+         *
          * @return Shell idle ?
          */
         public synchronized boolean isIdle() {
@@ -1693,7 +1719,7 @@ public class Shell {
          * See {@link Shell.Interactive} for further details on threading and
          * handlers
          * </p>
-         * 
+         *
          * @return True if wait complete, false if wait interrupted
          */
         public boolean waitForIdle() {
@@ -1740,7 +1766,7 @@ public class Shell {
 
         /**
          * Are we using a Handler to post callbacks ?
-         * 
+         *
          * @return Handler used ?
          */
         public boolean hasHandler() {
