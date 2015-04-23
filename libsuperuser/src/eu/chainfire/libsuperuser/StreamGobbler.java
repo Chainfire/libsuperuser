@@ -92,12 +92,14 @@ public class StreamGobbler extends Thread {
                 if (listener != null) listener.onLine(line);
             }
         } catch (IOException e) {
+            // reader probably closed, expected exit condition
         }
 
         // make sure our stream is closed and resources will be freed
         try {
             reader.close();
-        } catch (IOException e) {			
+        } catch (IOException e) {
+            // read already closed
         }
     }
 }

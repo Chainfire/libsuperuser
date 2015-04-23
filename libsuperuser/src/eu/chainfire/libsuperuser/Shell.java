@@ -177,6 +177,7 @@ public class Shell {
             try {
                 STDIN.close();
             } catch (IOException e) {
+                // might be closed already
             }
             STDOUT.join();
             STDERR.join();
@@ -379,6 +380,7 @@ public class Shell {
                                     break;
                                 }
                             } catch (NumberFormatException e) {
+                                // should be parsable, try next line otherwise
                             }
                         }
                     }
@@ -485,6 +487,7 @@ public class Shell {
                                     is.close();
                                 }
                             } catch (Exception e) {
+                                // we might not be allowed to read, thanks SELinux
                             }
                         }
                     }
@@ -1327,6 +1330,7 @@ public class Shell {
                         STDIN.write(("echo " + command.marker + " >&2\n").getBytes("UTF-8"));
                         STDIN.flush();
                     } catch (IOException e) {
+                        // STDIN might have closed
                     }
                 } else {
                     runNextCommand(false);
@@ -1497,6 +1501,8 @@ public class Shell {
                                             lastExitCode = Integer.valueOf(
                                                     line.substring(command.marker.length() + 1), 10);
                                         } catch (Exception e) {
+                                            // this really shouldn't happen
+                                            e.printStackTrace();
                                         }
                                         lastMarkerSTDOUT = command.marker;
                                         processMarker();
@@ -1624,10 +1630,12 @@ public class Shell {
             try {
                 STDIN.close();
             } catch (IOException e) {
+                // in case it was closed
             }
             try {
                 process.destroy();
             } catch (Exception e) {
+                // in case it was already destroyed or can't be
             }
         }
 
@@ -1641,10 +1649,10 @@ public class Shell {
                 return false;
             }
             try {
-                // if this throws, we're still running
                 process.exitValue();
                 return false;
             } catch (IllegalThreadStateException e) {
+                // if this is thrown, we're still running
             }
             return true;
         }
