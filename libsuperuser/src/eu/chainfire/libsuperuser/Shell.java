@@ -996,8 +996,8 @@ public class Shell {
         private volatile int callbacks = 0;
         private volatile int watchdogCount;
 
-        private Object idleSync = new Object();
-        private Object callbackSync = new Object();
+        private final Object idleSync = new Object();
+        private final Object callbackSync = new Object();
 
         private volatile int lastExitCode = 0;
         private volatile String lastMarkerSTDOUT = null;
