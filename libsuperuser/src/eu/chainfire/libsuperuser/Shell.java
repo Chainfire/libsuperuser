@@ -368,7 +368,7 @@ public class Shell {
                 if (ret != null) {
                     for (String line : ret) {
                         if (!internal) {
-                            if (line.contains(".")) {
+                            if (!line.trim().equals("")) {
                                 version = line;
                                 break;
                             }
