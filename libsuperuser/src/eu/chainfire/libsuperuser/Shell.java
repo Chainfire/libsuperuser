@@ -1036,8 +1036,8 @@ public class Shell {
                 watchdogTimeout = 60;
                 commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener() {
                     public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-                        if (exitCode == OnCommandResultListener.SHELL_RUNNING &&
-                                Shell.parseAvailableResult(output, Shell.SU.isSU(shell)) != true) {
+                        if ((exitCode == OnCommandResultListener.SHELL_RUNNING) &&
+                                !Shell.parseAvailableResult(output, Shell.SU.isSU(shell))) {
                             // shell is up, but it's brain-damaged
                             exitCode = OnCommandResultListener.SHELL_WRONG_UID;
                         }
