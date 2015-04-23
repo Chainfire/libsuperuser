@@ -22,6 +22,9 @@ android {
             assets.srcDirs = ['assets']
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_6
+    }
 }
 
 version = "1.0.0." + (new Date()).format('yyyyMMddHHmm')
