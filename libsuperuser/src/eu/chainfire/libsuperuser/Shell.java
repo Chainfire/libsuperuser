@@ -476,19 +476,17 @@ public class Shell {
                 // leak
                 if (android.os.Build.VERSION.SDK_INT >= 17) {
                     // Detect enforcing through sysfs, not always present
-                    if (enforcing == null) {
-                        File f = new File("/sys/fs/selinux/enforce");
-                        if (f.exists()) {
+                    File f = new File("/sys/fs/selinux/enforce");
+                    if (f.exists()) {
+                        try {
+                            InputStream is = new FileInputStream("/sys/fs/selinux/enforce");
                             try {
-                                InputStream is = new FileInputStream("/sys/fs/selinux/enforce");
-                                try {
-                                    enforcing = (is.read() == '1');
-                                } finally {
-                                    is.close();
-                                }
-                            } catch (Exception e) {
-                                // we might not be allowed to read, thanks SELinux
+                                enforcing = (is.read() == '1');
+                            } finally {
+                                is.close();
                             }
+                        } catch (Exception e) {
+                            // we might not be allowed to read, thanks SELinux
                         }
                     }
 
