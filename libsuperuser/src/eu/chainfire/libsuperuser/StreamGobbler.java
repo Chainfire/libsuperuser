@@ -85,7 +85,7 @@ public class StreamGobbler extends Thread {
     public void run() {
         // keep reading the InputStream until it ends (or an error occurs)
         try {
-            String line = null;
+            String line;
             while ((line = reader.readLine()) != null) {
                 Debug.logOutput(String.format("[%s] %s", shell, line));
                 if (writer != null) writer.add(line);
