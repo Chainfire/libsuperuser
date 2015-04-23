@@ -53,7 +53,7 @@ public class Debug {
     // ----- LOGGING -----
 
     public interface OnLogListener {
-        public void onLog(int type, String typeIndicator, String message);
+        void onLog(int type, String typeIndicator, String message);
     }
 
     public static final String TAG = "libsuperuser";
