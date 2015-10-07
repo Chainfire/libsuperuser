@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 Jorrit "Chainfire" Jongma
+ * Copyright (C) 2012-2015 Jorrit "Chainfire" Jongma
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package eu.chainfire.libsuperuser;
 
 /**
  * Exception class used to crash application when shell commands are executed
- * from the main thread, and we are in debug mode. 
+ * from the main thread, and we are in debug mode.
  */
 @SuppressWarnings("serial")
 public class ShellOnMainThreadException extends RuntimeException {

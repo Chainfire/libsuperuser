@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 Jorrit "Chainfire" Jongma
+ * Copyright (C) 2012-2015 Jorrit "Chainfire" Jongma
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import android.widget.Toast;
 public class Application extends android.app.Application {
     /**
      * Shows a toast message
-     * 
+     *
      * @param context Any context belonging to this application
      * @param message The message to show
      */
@@ -45,7 +45,7 @@ public class Application extends android.app.Application {
             final Context c = context;
             final String m = message;
 
-            ((Application)context).runInApplicationThread(new Runnable() {
+            ((Application) context).runInApplicationThread(new Runnable() {
                 @Override
                 public void run() {
                     Toast.makeText(c, m, Toast.LENGTH_LONG).show();
@@ -58,7 +58,7 @@ public class Application extends android.app.Application {
 
     /**
      * Run a runnable in the main application thread
-     * 
+     *
      * @param r Runnable to run
      */
     public void runInApplicationThread(Runnable r) {
