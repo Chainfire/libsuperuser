@@ -429,6 +429,7 @@ public class Shell {
                 String internal = version(true);
 
                 // We only know the format for SuperSU v1.90+ right now
+                //TODO add detection for other su's that support this
                 if ((display != null) &&
                         (internal != null) &&
                         (display.endsWith("SUPERSU")) &&
