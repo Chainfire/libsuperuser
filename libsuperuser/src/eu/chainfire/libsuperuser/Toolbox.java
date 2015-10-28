@@ -25,6 +25,12 @@ import java.util.Locale;
  * Utility class to decide between toolbox and toybox calls on M.
  * Note that some calls (such as 'ls') are present in both, this
  * class will favor toybox variants.
+ *
+ * This may not be what you want, as both syntax and output may
+ * differ between the variants.
+ *
+ * Very specific warning, the 'mount' included with toybox tends
+ * to segfault, at least on the first few 6.0 firmwares.
  */
 public class Toolbox {
     private static final int TOYBOX_SDK = 23;
