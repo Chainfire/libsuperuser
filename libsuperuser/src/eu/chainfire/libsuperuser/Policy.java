@@ -16,8 +16,6 @@
 
 package eu.chainfire.libsuperuser;
 
-//TODO add detection for supolicy availability, or other su's equivalent tools
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,6 +52,8 @@ public abstract class Policy {
      */
     private static final int MAX_POLICY_LENGTH = 4096 - 32;
 
+    private static final Object synchronizer = new Object();
+    private static volatile Boolean canInject = null;
     private static volatile boolean injected = false;
 
     /**
@@ -68,7 +68,9 @@ public abstract class Policy {
      * rare, you will probably never need this.
      */
     public static void resetInjected() {
-        injected = false;
+        synchronized (synchronizer) {
+            injected = false;
+        }
     }
 
     /**
@@ -79,42 +81,86 @@ public abstract class Policy {
     protected abstract String[] getPolicies();
 
     /**
+     * Detects availability of the supolicy tool. Only useful if Shell.SU.isSELinuxEnforcing()
+     * returns true.
+     *
+     * @return supolicy canInject?
+     */
+    public static boolean canInject() {
+        synchronized (synchronizer) {
+            if (canInject != null) return canInject;
+
+            canInject = false;
+
+            // We are making the assumption here that if supolicy is called without parameters,
+            // it will return output (such as a usage notice) on STDOUT (not STDERR) that contains
+            // at least the word "supolicy". This is true at least for SuperSU.
+
+            List<String> result = Shell.run("sh", new String[] { "supolicy" }, null, false);
+            if (result != null) {
+                for (String line : result) {
+                    if (line.contains("supolicy")) {
+                        canInject = true;
+                        break;
+                    }
+                }
+            }
+
+            return canInject;
+        }
+    }
+
+    /**
+     * Reset cached can-inject state and force redetection on nect canInject() call
+     */
+    public static void resetCanInject() {
+        synchronized (synchronizer) {
+            canInject = null;
+        }
+    }
+
+    /**
      * Inject the policies defined by getPolicies(). Throws an exception if called from
      * the main thread in debug mode.
      */
     public void inject() {
-        // No reason to bother if we're in permissive mode
-        if (!Shell.SU.isSELinuxEnforcing()) return;
+        synchronized (synchronizer) {
+            // No reason to bother if we're in permissive mode
+            if (!Shell.SU.isSELinuxEnforcing()) return;
 
-        // Been there, done that
-        if (injected) return;
+            // If we can't inject, no use continuing
+            if (!canInject()) return;
 
-        // Retrieve policies
-        String[] policies = getPolicies();
-        if ((policies != null) && (policies.length > 0)) {
-            List<String> commands = new ArrayList<String>();
+            // Been there, done that
+            if (injected) return;
 
-            // Combine the policies into a minimal number of commands
-            String command = "";
-            for (String policy : policies) {
-                if ((command.length() == 0) || (command.length() + policy.length() + 3 < MAX_POLICY_LENGTH)) {
-                    command = command + " \"" + policy + "\"";
-                } else {
+            // Retrieve policies
+            String[] policies = getPolicies();
+            if ((policies != null) && (policies.length > 0)) {
+                List<String> commands = new ArrayList<String>();
+
+                // Combine the policies into a minimal number of commands
+                String command = "";
+                for (String policy : policies) {
+                    if ((command.length() == 0) || (command.length() + policy.length() + 3 < MAX_POLICY_LENGTH)) {
+                        command = command + " \"" + policy + "\"";
+                    } else {
+                        commands.add("supolicy --live" + command);
+                        command = "";
+                    }
+                }
+                if (command.length() > 0) {
                     commands.add("supolicy --live" + command);
-                    command = "";
+                }
+
+                // Execute policies
+                if (commands.size() > 0) {
+                    Shell.SU.run(commands);
                 }
             }
-            if (command.length() > 0) {
-                commands.add("supolicy --live" + command);
-            }
 
-            // Execute policies
-            if (commands.size() > 0) {
-                Shell.SU.run(commands);
-            }
+            // We survived without throwing
+            injected = true;
         }
-
-        // We survived without throwing
-        injected = true;
     }
 }
