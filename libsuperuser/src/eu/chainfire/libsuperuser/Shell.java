@@ -1493,20 +1493,35 @@ public class Shell {
                             if (command == null) {
                                 return;
                             }
-                            if (line.startsWith(command.marker)) {
+
+                            String contentPart = line;
+                            String markerPart = null;
+
+                            int markerIndex = line.indexOf(command.marker);
+                            if (markerIndex == 0) {
+                                contentPart = null;
+                                markerPart = line;
+                            } else if (markerIndex > 0) {
+                                contentPart = line.substring(0, markerIndex);
+                                markerPart = line.substring(markerIndex);
+                            }
+
+                            if (contentPart != null) {
+                                addBuffer(contentPart);
+                                processLine(contentPart, onSTDOUTLineListener);
+                                processLine(contentPart, command.onCommandLineListener);
+                            }
+
+                            if (markerPart != null) {
                                 try {
                                     lastExitCode = Integer.valueOf(
-                                            line.substring(command.marker.length() + 1), 10);
+                                            markerPart.substring(command.marker.length() + 1), 10);
                                 } catch (Exception e) {
                                     // this really shouldn't happen
                                     e.printStackTrace();
                                 }
                                 lastMarkerSTDOUT = command.marker;
                                 processMarker();
-                            } else {
-                                addBuffer(line);
-                                processLine(line, onSTDOUTLineListener);
-                                processLine(line, command.onCommandLineListener);
                             }
                         }
                     }
@@ -1519,13 +1534,25 @@ public class Shell {
                             if (command == null) {
                                 return;
                             }
-                            if (line.startsWith(command.marker)) {
+
+                            String contentPart = line;
+
+                            int markerIndex = line.indexOf(command.marker);
+                            if (markerIndex == 0) {
+                                contentPart = null;
+                            } else if (markerIndex > 0) {
+                                contentPart = line.substring(0, markerIndex);
+                            }
+
+                            if (contentPart != null) {
+                                if (wantSTDERR)
+                                    addBuffer(contentPart);
+                                processLine(contentPart, onSTDERRLineListener);
+                            }
+
+                            if (markerIndex >= 0) {
                                 lastMarkerSTDERR = command.marker;
                                 processMarker();
-                            } else {
-                                if (wantSTDERR)
-                                    addBuffer(line);
-                                processLine(line, onSTDERRLineListener);
                             }
                         }
                     }
