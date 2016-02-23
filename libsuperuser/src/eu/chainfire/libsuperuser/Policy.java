@@ -84,7 +84,7 @@ public abstract class Policy {
      * Detects availability of the supolicy tool. Only useful if Shell.SU.isSELinuxEnforcing()
      * returns true.
      *
-     * @return supolicy canInject?
+     * @return canInject?
      */
     public static boolean canInject() {
         synchronized (synchronizer) {
@@ -120,19 +120,20 @@ public abstract class Policy {
     }
 
     /**
-     * Inject the policies defined by getPolicies(). Throws an exception if called from
-     * the main thread in debug mode.
+     * Transform the policies defined by getPolicies() into a set of shell commands
+     *
+     * @return Possibly empty List of commands, or null
      */
-    public void inject() {
+    protected List<String> getInjectCommands() {
         synchronized (synchronizer) {
             // No reason to bother if we're in permissive mode
-            if (!Shell.SU.isSELinuxEnforcing()) return;
+            if (!Shell.SU.isSELinuxEnforcing()) return null;
 
             // If we can't inject, no use continuing
-            if (!canInject()) return;
+            if (!canInject()) return null;
 
             // Been there, done that
-            if (injected) return;
+            if (injected) return null;
 
             // Retrieve policies
             String[] policies = getPolicies();
@@ -153,9 +154,49 @@ public abstract class Policy {
                     commands.add("supolicy --live" + command);
                 }
 
-                // Execute policies
-                if (commands.size() > 0) {
-                    Shell.SU.run(commands);
+                return commands;
+            }
+
+            // No policies
+            return null;
+        }
+    }
+
+    /**
+     * Inject the policies defined by getPolicies(). Throws an exception if called from
+     * the main thread in debug mode.
+     */
+    public void inject() {
+        synchronized (synchronizer) {
+            // Get commands that inject our policies
+            List<String> commands = getInjectCommands();
+
+            // Execute them, if any
+            if ((commands != null) && (commands.size() > 0)) {
+                Shell.SU.run(commands);
+            }
+
+            // We survived without throwing
+            injected = true;
+        }
+    }
+
+    /**
+     * Inject the policies defined by getPolicies(). Throws an exception if called from
+     * the main thread in debug mode if waitForIdle is true. If waitForIdle is false
+     * however, it cannot be guaranteed the command was executed and the policies injected
+     * upon return.
+     */
+    public void inject(Shell.Interactive shell, boolean waitForIdle) {
+        synchronized (synchronizer) {
+            // Get commands that inject our policies
+            List<String> commands = getInjectCommands();
+
+            // Execute them, if any
+            if ((commands != null) && (commands.size() > 0)) {
+                shell.addCommand(commands);
+                if (waitForIdle) {
+                    shell.waitForIdle();
                 }
             }
 
