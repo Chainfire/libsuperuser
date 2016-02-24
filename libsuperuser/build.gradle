@@ -106,3 +106,5 @@ artifacts {
 task findConventions << {
     println project.getConvention()
 }
+
+bintrayUpload.dependsOn install
