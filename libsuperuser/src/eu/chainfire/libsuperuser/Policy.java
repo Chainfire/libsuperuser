@@ -125,12 +125,22 @@ public abstract class Policy {
      * @return Possibly empty List of commands, or null
      */
     protected List<String> getInjectCommands() {
+        return getInjectCommands(true);
+    }
+
+    /**
+     * Transform the policies defined by getPolicies() into a set of shell commands
+     *
+     * @param allowBlocking allow method to perform blocking I/O for extra checks
+     * @return Possibly empty List of commands, or null
+     */
+    protected List<String> getInjectCommands(boolean allowBlocking) {
         synchronized (synchronizer) {
             // No reason to bother if we're in permissive mode
             if (!Shell.SU.isSELinuxEnforcing()) return null;
 
             // If we can't inject, no use continuing
-            if (!canInject()) return null;
+            if (allowBlocking && !canInject()) return null;
 
             // Been there, done that
             if (injected) return null;
@@ -190,7 +200,7 @@ public abstract class Policy {
     public void inject(Shell.Interactive shell, boolean waitForIdle) {
         synchronized (synchronizer) {
             // Get commands that inject our policies
-            List<String> commands = getInjectCommands();
+            List<String> commands = getInjectCommands(waitForIdle);
 
             // Execute them, if any
             if ((commands != null) && (commands.size() > 0)) {
