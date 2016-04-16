@@ -18,6 +18,7 @@ package eu.chainfire.libsuperuser;
 
 import android.os.Build;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 
@@ -36,19 +37,19 @@ public class Toolbox {
     private static final int TOYBOX_SDK = 23;
 
     private static final Object synchronizer = new Object();
-    private static volatile String toybox = null;
+    private static volatile HashSet<String> toyboxApplets = null;
 
     /**
      * Initialize. Asks toybox which commands it supports. Throws an exception if called from
      * the main thread in debug mode.
      */
-    public static void init() {
+    private static void init() {
         // already inited ?
-        if (toybox != null) return;
+        if (toyboxApplets != null) return;
 
         // toybox is M+
         if (Build.VERSION.SDK_INT < TOYBOX_SDK) {
-            toybox = "";
+            toyboxApplets = new HashSet<String>();
         } else {
             if (Debug.getSanityChecksEnabledEffective() && Debug.onMainThread()) {
                 Debug.log(ShellOnMainThreadException.EXCEPTION_TOOLBOX);
@@ -57,14 +58,15 @@ public class Toolbox {
 
             // ask toybox which commands it has, and store the info
             synchronized (synchronizer) {
-                toybox = "";
-
-                List<String> output = Shell.SH.run("toybox");
-                if (output != null) {
-                    toybox = " ";
-                    for (String line : output) {
-                        toybox = toybox + line.trim() + " ";
+                if (toyboxApplets == null) {
+                    HashSet<String> applets = new HashSet<String>();
+                    List<String> output = Shell.SH.run("toybox");
+                    if (output != null) {
+                        for (String line : output) {
+                            applets.add(line.trim());
+                        }
                     }
+                    toyboxApplets = applets;
                 }
             }
         }
@@ -92,7 +94,7 @@ public class Toolbox {
             return String.format(Locale.ENGLISH, "toolbox " + format, args);
         }
 
-        if (toybox == null) init();
+        if (toyboxApplets == null) init();
 
         format = format.trim();
         String applet;
@@ -103,7 +105,7 @@ public class Toolbox {
             applet = format;
         }
 
-        if (toybox.contains(" " + applet + " ")) {
+        if (toyboxApplets.contains(applet)) {
             return String.format(Locale.ENGLISH, "toybox " + format, args);
         } else {
             return String.format(Locale.ENGLISH, "toolbox " + format, args);
