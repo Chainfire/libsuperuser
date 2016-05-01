@@ -43,7 +43,7 @@ public class Toolbox {
      * Initialize. Asks toybox which commands it supports. Throws an exception if called from
      * the main thread in debug mode.
      */
-    private static void init() {
+    public static void init() {
         // already inited ?
         if (toyboxApplets != null) return;
 
