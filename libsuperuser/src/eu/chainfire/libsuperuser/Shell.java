@@ -1651,11 +1651,6 @@ public class Shell {
             running = false;
             closed = true;
 
-            idle = true;
-            synchronized (idleSync) {
-                idleSync.notifyAll();
-            }
-
             try {
                 STDIN.close();
             } catch (IOException e) {
@@ -1665,6 +1660,11 @@ public class Shell {
                 process.destroy();
             } catch (Exception e) {
                 // in case it was already destroyed or can't be
+            }
+
+            idle = true;
+            synchronized (idleSync) {
+                idleSync.notifyAll();
             }
         }
 
