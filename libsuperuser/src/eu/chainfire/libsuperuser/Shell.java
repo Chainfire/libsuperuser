@@ -1243,9 +1243,7 @@ public class Shell {
                 Debug.log(String.format("[%s%%] WATCHDOG_EXIT", shell.toUpperCase(Locale.ENGLISH)));
             }
 
-            if (handler != null) {
-                postCallback(command, exitCode, buffer);
-            }
+            postCallback(command, exitCode, buffer);
 
             // prevent multiple callbacks for the same command
             command = null;
