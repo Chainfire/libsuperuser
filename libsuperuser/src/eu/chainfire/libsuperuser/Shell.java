@@ -1661,6 +1661,11 @@ public class Shell {
             } catch (Exception e) {
                 // in case it was already destroyed or can't be
             }
+
+            idle = true;
+            synchronized (idleSync) {
+                idleSync.notifyAll();
+            }
         }
 
         /**
