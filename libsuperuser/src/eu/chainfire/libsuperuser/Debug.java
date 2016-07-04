@@ -30,7 +30,7 @@ public class Debug {
 
     /**
      * <p>Enable or disable debug mode</p>
-     * <p/>
+     *
      * <p>By default, debug mode is enabled for development
      * builds and disabled for exported APKs - see
      * BuildConfig.DEBUG</p>
@@ -71,7 +71,7 @@ public class Debug {
 
     /**
      * <p>Log a message (internal)</p>
-     * <p/>
+     *
      * <p>Current debug and enabled logtypes decide what gets logged -
      * even if a custom callback is registered</p>
      *
@@ -91,7 +91,7 @@ public class Debug {
 
     /**
      * <p>Log a "general" message</p>
-     * <p/>
+     *
      * <p>These messages are infrequent and mostly occur at startup/shutdown or on error</p>
      *
      * @param message The message to log
@@ -102,7 +102,7 @@ public class Debug {
 
     /**
      * <p>Log a "per-command" message</p>
-     * <p/>
+     *
      * <p>This could produce a lot of output if the client runs many commands in the session</p>
      *
      * @param message The message to log
@@ -113,7 +113,7 @@ public class Debug {
 
     /**
      * <p>Log a line of stdout/stderr output</p>
-     * <p/>
+     *
      * <p>This could produce a lot of output if the shell commands are noisy</p>
      *
      * @param message The message to log
@@ -124,7 +124,7 @@ public class Debug {
 
     /**
      * <p>Enable or disable logging specific types of message</p>
-     * <p/>
+     *
      * <p>You may | (or) LOG_* constants together. Note that
      * debug mode must also be enabled for actual logging to
      * occur.</p>
@@ -142,13 +142,14 @@ public class Debug {
 
     /**
      * <p>Is logging for specific types of messages enabled ?</p>
-     * <p/>
+     *
      * <p>You may | (or) LOG_* constants together, to learn if
      * <b>all</b> passed message types are enabled for logging. Note
      * that debug mode must also be enabled for actual logging
      * to occur.</p>
      *
      * @param type LOG_* constants
+     * @return enabled?
      */
     public static boolean getLogTypeEnabled(int type) {
         return ((logTypes & type) == type);
@@ -156,12 +157,13 @@ public class Debug {
 
     /**
      * <p>Is logging for specific types of messages enabled ?</p>
-     * <p/>
+     *
      * <p>You may | (or) LOG_* constants together, to learn if
      * <b>all</b> message types are enabled for logging. Takes
      * debug mode into account for the result.</p>
      *
      * @param type LOG_* constants
+     * @return enabled and in debug mode?
      */
     public static boolean getLogTypeEnabledEffective(int type) {
         return getDebug() && getLogTypeEnabled(type);
@@ -169,7 +171,7 @@ public class Debug {
 
     /**
      * <p>Register a custom log handler</p>
-     * <p/>
+     *
      * <p>Replaces the log method (write to logcat) with your own
      * handler. Whether your handler gets called is still dependent
      * on debug mode and message types being enabled for logging.</p>
@@ -195,7 +197,7 @@ public class Debug {
 
     /**
      * <p>Enable or disable sanity checks</p>
-     * <p/>
+     *
      * <p>Enables or disables the library crashing when su is called
      * from the main thread.</p>
      *
@@ -207,7 +209,7 @@ public class Debug {
 
     /**
      * <p>Are sanity checks enabled ?</p>
-     * <p/>
+     *
      * <p>Note that debug mode must also be enabled for actual
      * sanity checks to occur.</p>
      *
@@ -219,7 +221,7 @@ public class Debug {
 
     /**
      * <p>Are sanity checks enabled ?</p>
-     * <p/>
+     *
      * <p>Takes debug mode into account for the result.</p>
      *
      * @return True if enabled

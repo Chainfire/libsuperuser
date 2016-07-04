@@ -892,6 +892,8 @@ public class Shell {
 
         /**
          * Construct a {@link Shell.Interactive} instance, and start the shell
+         *
+         * @return Interactive shell
          */
         public Interactive open() {
             return new Interactive(this, null);
@@ -902,6 +904,7 @@ public class Shell {
          * shell, and call onCommandResultListener to report success or failure
          *
          * @param onCommandResultListener Callback to return shell open status
+         * @return Interactive shell
          */
         public Interactive open(OnCommandResultListener onCommandResultListener) {
             return new Interactive(this, onCommandResultListener);

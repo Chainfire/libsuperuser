@@ -72,15 +72,15 @@ public class Toolbox {
 
     /**
      * Format a command string, deciding on toolbox or toybox for its execution
-     * <p/>
+     *
      * If init() has not already been called, it is called for you, which may throw an exception
      * if we're in the main thread.
-     * <p/>
+     *
      * Example:
      * Toolbox.command("chmod 0.0 %s", "/some/file/somewhere");
-     * <p/>
+     *
      * Output:
-     * < M: "toolbox chmod 0.0 /some/file/somewhere"
+     * &lt; M: "toolbox chmod 0.0 /some/file/somewhere"
      * M+ : "toybox chmod 0.0 /some/file/somewhere"
      *
      * @param format String to format. First word is the applet name.

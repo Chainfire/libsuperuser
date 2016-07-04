@@ -21,14 +21,14 @@ import java.util.List;
 
 /**
  * Helper class for modifying SELinux policies, reducing the number of calls to a minimum.
- * <p/>
+ *
  * Example usage:
- * <p/>
+ *
  * <pre>
- * {@code
+ * <code>
  *
  * private class Policy extends eu.chainfire.libsuperuser.Policy {
- *     @Override protected String[] getPolicies() {
+ *     {@literal @}Override protected String[] getPolicies() {
  *         return new String[] {
  *             "allow sdcardd unlabeled dir { append create execute write relabelfrom link unlink ioctl getattr setattr read rename lock mounton quotaon swapon rmdir audit_access remove_name add_name reparent execmod search open }",
  *             "allow sdcardd unlabeled file { append create write relabelfrom link unlink ioctl getattr setattr read rename lock mounton quotaon swapon audit_access open }",
@@ -42,7 +42,7 @@ import java.util.List;
  *     policy.inject();
  * }
  *
- * }
+ * </code>
  * </pre>
  */
 public abstract class Policy {
@@ -196,6 +196,9 @@ public abstract class Policy {
      * the main thread in debug mode if waitForIdle is true. If waitForIdle is false
      * however, it cannot be guaranteed the command was executed and the policies injected
      * upon return.
+     *
+     * @param shell Interactive shell to execute commands on
+     * @param waitForIdle wait for the command to complete before returning ?
      */
     public void inject(Shell.Interactive shell, boolean waitForIdle) {
         synchronized (synchronizer) {
