@@ -1420,7 +1420,7 @@ public class Shell {
                 return;
             }
             if (handler == null) {
-                if ((fCommand.onCommandResultListener != null) && (fOutput != null))
+                if (fCommand.onCommandResultListener != null)
                     fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode,
                             fOutput);
                 if (fCommand.onCommandLineListener != null)
