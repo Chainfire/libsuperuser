@@ -1432,7 +1432,7 @@ public class Shell {
                 @Override
                 public void run() {
                     try {
-                        if ((fCommand.onCommandResultListener != null) && (fOutput != null))
+                        if (fCommand.onCommandResultListener != null)
                             fCommand.onCommandResultListener.onCommandResult(fCommand.code,
                                     fExitCode, fOutput);
                         if (fCommand.onCommandLineListener != null)
