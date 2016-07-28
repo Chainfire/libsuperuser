@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -489,9 +490,16 @@ public class Shell {
                         }
                     }
 
-                    // 4.4+ builds are enforcing by default, take the gamble
+                    // 4.4+ has a new API to detect SELinux mode, so use it
+                    // SELinux is typically in enforced mode, but emulators may have SELinux disabled
                     if (enforcing == null) {
-                        enforcing = (android.os.Build.VERSION.SDK_INT >= 19);
+                        try {
+                            Class seLinux = Class.forName("android.os.SELinux");
+                            Method isSELinuxEnforced = seLinux.getMethod("isSELinuxEnforced");
+                            enforcing = (boolean) isSELinuxEnforced.invoke(seLinux.newInstance());
+                        } catch (Exception e) {
+                            enforcing = false;
+                        }
                     }
                 }
 
