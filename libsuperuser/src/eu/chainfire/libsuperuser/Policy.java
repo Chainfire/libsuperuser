@@ -55,6 +55,7 @@ public abstract class Policy {
     private static final Object synchronizer = new Object();
     private static volatile Boolean canInject = null;
     private static volatile boolean injected = false;
+    private static volatile boolean isSepolicyInject = false;
 
     /**
      * @return Have we injected our policies already?
@@ -105,6 +106,18 @@ public abstract class Policy {
                     }
                 }
             }
+            
+            List<String> result = Shell.run("sh", new String[] { "sepolicy-inject" }, null, false);
+            if (result != null) {
+                for (String line : result) {
+                    if (line.contains("sepolicy-inject")) {
+                        isSepolicyInject = true;
+                        break;
+                    }
+                }
+            }
+            
+            canInject = canInject || isSepolicyInject;
 
             return canInject;
         }
@@ -150,18 +163,24 @@ public abstract class Policy {
             if ((policies != null) && (policies.length > 0)) {
                 List<String> commands = new ArrayList<String>();
 
-                // Combine the policies into a minimal number of commands
-                String command = "";
-                for (String policy : policies) {
-                    if ((command.length() == 0) || (command.length() + policy.length() + 3 < MAX_POLICY_LENGTH)) {
-                        command = command + " \"" + policy + "\"";
-                    } else {
-                        commands.add("supolicy --live" + command);
-                        command = "";
+                if (isSepolicyInject) {
+                    for (String policy : policies) {
+                        String command = reformatCommandForSepolicyInject(policy);
+                        commands.add(command);
                     }
-                }
-                if (command.length() > 0) {
-                    commands.add("supolicy --live" + command);
+                } else {
+                    String command = "";
+                    for (String policy : policies) {
+                        if ((command.length() == 0) || (command.length() + policy.length() + 3 < MAX_POLICY_LENGTH)) {
+                            command = command + " \"" + policy + "\"";
+                        } else {
+                            commands.add("supolicy --live" + command);
+                            command = "";
+                        }
+                    }
+                    if (command.length() > 0) {
+                        commands.add("supolicy --live" + command);
+                    }
                 }
 
                 return commands;
@@ -170,6 +189,41 @@ public abstract class Policy {
             // No policies
             return null;
         }
+    }
+    
+    /**
+     * Transform policy command to format acceptable for sepolicy-inject tool
+     *
+     * @param policy command
+     * @return policy command ready for sepolicy-inject tool
+     */
+    private String reformatCommandForSepolicyInject(String command) {
+        int len = command.length();
+        command = command.replaceAll("[{}]", "");
+        if (len - command.length() > 2) {
+            return null;
+        }
+
+        String[] cmd_parts = command.split("\\s+");
+
+        String cmd = "sepolicy-inject";
+        if (cmd_parts.length < 5 || !cmd_parts[0].equals("allow")) {
+            return null;
+        }
+        cmd += " -s " + cmd_parts[1]; // source
+        cmd += " -t " + cmd_parts[2]; // target
+        cmd += " -c " + cmd_parts[3]; // class
+        String perms = "";
+        for (int i = 4; i <= cmd_parts.length-1; i++) {
+            perms += cmd_parts[i];
+            if (i < cmd_parts.length-1) {
+                perms += ",";
+            }
+        }
+
+        cmd += " -p " + perms;
+        cmd += " -l";
+        return cmd;
     }
 
     /**
