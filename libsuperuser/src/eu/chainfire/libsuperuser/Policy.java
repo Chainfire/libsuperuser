@@ -55,6 +55,7 @@ public abstract class Policy {
     private static final Object synchronizer = new Object();
     private static volatile Boolean canInject = null;
     private static volatile boolean injected = false;
+    private static volatile boolean isSupolicy = false;
     private static volatile boolean isSepolicyInject = false;
 
     /**
@@ -101,7 +102,7 @@ public abstract class Policy {
             if (result != null) {
                 for (String line : result) {
                     if (line.contains("supolicy")) {
-                        canInject = true;
+                        isSupolicy = true;
                         break;
                     }
                 }
@@ -117,7 +118,7 @@ public abstract class Policy {
                 }
             }
             
-            canInject = canInject || isSepolicyInject;
+            canInject = isSupolicy || isSepolicyInject;
 
             return canInject;
         }
@@ -163,12 +164,7 @@ public abstract class Policy {
             if ((policies != null) && (policies.length > 0)) {
                 List<String> commands = new ArrayList<String>();
 
-                if (isSepolicyInject) {
-                    for (String policy : policies) {
-                        String command = reformatCommandForSepolicyInject(policy);
-                        commands.add(command);
-                    }
-                } else {
+                if (isSupolicy) {
                     String command = "";
                     for (String policy : policies) {
                         if ((command.length() == 0) || (command.length() + policy.length() + 3 < MAX_POLICY_LENGTH)) {
@@ -180,6 +176,15 @@ public abstract class Policy {
                     }
                     if (command.length() > 0) {
                         commands.add("supolicy --live" + command);
+                    }
+                } else if (isSepolicyInject) {
+                    String command = "";
+                    for (String policy : policies) {
+                        command = reformatCommandForSepolicyInject(policy);
+                        if (command != null || command.length() > 0) {
+                            commands.add(command);
+                            command = "";
+                        }
                     }
                 }
 
