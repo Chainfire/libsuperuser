@@ -496,7 +496,7 @@ public class Shell {
                         try {
                             Class seLinux = Class.forName("android.os.SELinux");
                             Method isSELinuxEnforced = seLinux.getMethod("isSELinuxEnforced");
-                            enforcing = (boolean) isSELinuxEnforced.invoke(seLinux.newInstance());
+                            enforcing = (Boolean) isSELinuxEnforced.invoke(seLinux.newInstance());
                         } catch (Exception e) {
                             // 4.4+ release builds are enforcing by default, take the gamble
                             enforcing = (android.os.Build.VERSION.SDK_INT >= 19);
