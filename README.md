@@ -10,6 +10,6 @@ Gradle:
 
 ```
 dependencies {
-    compile 'eu.chainfire:libsuperuser:1.0.0.+'
+    implementation 'eu.chainfire:libsuperuser:1.0.0.+'
 }
 ```
