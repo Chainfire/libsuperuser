@@ -7,7 +7,6 @@ For further details, see:
 ---
 
 Gradle:
-
 ```
 dependencies {
     compile 'eu.chainfire:libsuperuser:1.0.0.+'
