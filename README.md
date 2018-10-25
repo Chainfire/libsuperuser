@@ -6,7 +6,7 @@ For further details, see:
 
 ---
 
-Gradle:
+**Gradle:
 
 ```
 dependencies {
