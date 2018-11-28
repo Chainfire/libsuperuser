@@ -475,18 +475,27 @@ public class Shell {
                 // First known firmware with SELinux built-in was a 4.2 (17)
                 // leak
                 if (android.os.Build.VERSION.SDK_INT >= 17) {
+                    if (android.os.Build.VERSION.SDK_INT >= 28) {
+                        // Due to non-SDK API greylisting, we cannot determine SELinux status
+                        // through the methods below, so we assume SELinux is enforcing and
+                        // potentially patch policies for nothing
+                        enforcing = true;
+                    }
+
                     // Detect enforcing through sysfs, not always present
-                    File f = new File("/sys/fs/selinux/enforce");
-                    if (f.exists()) {
-                        try {
-                            InputStream is = new FileInputStream("/sys/fs/selinux/enforce");
+                    if (enforcing == null) {
+                        File f = new File("/sys/fs/selinux/enforce");
+                        if (f.exists()) {
                             try {
-                                enforcing = (is.read() == '1');
-                            } finally {
-                                is.close();
+                                InputStream is = new FileInputStream("/sys/fs/selinux/enforce");
+                                try {
+                                    enforcing = (is.read() == '1');
+                                } finally {
+                                    is.close();
+                                }
+                            } catch (Exception e) {
+                                // we might not be allowed to read, thanks SELinux
                             }
-                        } catch (Exception e) {
-                            // we might not be allowed to read, thanks SELinux
                         }
                     }
 
