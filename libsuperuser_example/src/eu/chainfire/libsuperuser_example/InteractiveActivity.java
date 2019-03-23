@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Jorrit "Chainfire" Jongma
+ * Copyright (C) 2012-2019 Jorrit "Chainfire" Jongma
  * Copyright (C) 2013 Kevin Cernekee
  *
  * Licensed under the Apache License, Version 2.0 (the "License");

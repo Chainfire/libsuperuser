@@ -31,9 +31,10 @@ version = "1.0.0." + (new Date()).format('yyyyMMddHHmm')
 group = "eu.chainfire"
 
 bintray {
-    // in global gradle.properties: "systemProp.bintrayUser=chainfire", etc
-    user = System.properties['bintrayUser']
-    key = System.properties['bintrayApiKey']
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    user = properties.getProperty('bintray.user')
+    key = properties.getProperty('bintray.apikey')
 
     configurations = ['archives']
     dryRun = false
