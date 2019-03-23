@@ -50,10 +50,10 @@ import android.os.Bundle;
  */
 public class BackgroundIntentService extends IntentService {
     // you could provide more options here, should you need them
-    public static final String ACTION_BOOT_COMPLETE 		= "boot_complete";
+    public static final String ACTION_BOOT_COMPLETE = "boot_complete";
 
     public static void performAction(Context context, String action) {
-        performAction(context, action, null);		
+        performAction(context, action, null);
     }
 
     public static void performAction(Context context, String action, Bundle extras) {
@@ -65,7 +65,7 @@ public class BackgroundIntentService extends IntentService {
 
         Intent svc = new Intent(context, BackgroundIntentService.class);
         svc.setAction(action);
-        if (extras != null)	svc.putExtras(extras);
+        if (extras != null) svc.putExtras(extras);
         context.startService(svc);
     }
 
@@ -76,7 +76,7 @@ public class BackgroundIntentService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        String action = intent.getAction();		
+        String action = intent.getAction();
         if ((action == null) || (action.equals(""))) return;
 
         if (action.equals(ACTION_BOOT_COMPLETE)) {
@@ -97,5 +97,5 @@ public class BackgroundIntentService extends IntentService {
         // simple and easily ported to your own Application class, if you can't use the 
         // one from libsuperuser.
         Application.toast(this, "This toast will self-destruct in five seconds");
-    }	
+    }
 }
