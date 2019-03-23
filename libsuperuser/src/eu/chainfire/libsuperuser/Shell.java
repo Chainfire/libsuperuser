@@ -743,7 +743,7 @@ public class Shell {
          * @return This Builder object for method chaining
          */
         public Builder addCommand(String command) {
-            return addCommand(command, 0, null);
+            return addCommand(command, 0, (OnCommandResultListener)null);
         }
 
         /**
@@ -768,13 +768,35 @@ public class Shell {
         }
 
         /**
+         * <p>
+         * Add a command to execute, with a callback. This callback gobbles the
+         * output line by line without buffering it and also returns the result
+         * code on completion.
+         * </p>
+         * <p>
+         * The thread on which the callback executes is dependent on various
+         * factors, see {@link Shell.Interactive} for further details
+         * </p>
+         *
+         * @param command Command to execute
+         * @param code User-defined value passed back to the callback
+         * @param onCommandLineListener Callback
+         * @return This Builder object for method chaining
+         */
+        public Builder addCommand(String command, int code, OnCommandLineListener onCommandLineListener) {
+            return addCommand(new String[]{
+                    command
+            }, code, onCommandLineListener);
+        }
+
+        /**
          * Add commands to execute
          *
          * @param commands Commands to execute
          * @return This Builder object for method chaining
          */
         public Builder addCommand(List<String> commands) {
-            return addCommand(commands, 0, null);
+            return addCommand(commands, 0, (OnCommandResultListener)null);
         }
 
         /**
@@ -799,13 +821,35 @@ public class Shell {
         }
 
         /**
+         * <p>
+         * Add commands to execute, with a callback. This callback gobbles the
+         * output line by line without buffering it and also returns the result
+         * code on completion.
+         * </p>
+         * <p>
+         * The thread on which the callback executes is dependent on various
+         * factors, see {@link Shell.Interactive} for further details
+         * </p>
+         *
+         * @param commands Commands to execute
+         * @param code User-defined value passed back to the callback
+         * @param onCommandLineListener Callback
+         * @return This Builder object for method chaining
+         */
+        public Builder addCommand(List<String> commands, int code,
+                               OnCommandLineListener onCommandLineListener) {
+            return addCommand(commands.toArray(new String[commands.size()]), code,
+                    onCommandLineListener);
+        }
+
+        /**
          * Add commands to execute
          *
          * @param commands Commands to execute
          * @return This Builder object for method chaining
          */
         public Builder addCommand(String[] commands) {
-            return addCommand(commands, 0, null);
+            return addCommand(commands, 0, (OnCommandResultListener)null);
         }
 
         /**
@@ -826,6 +870,28 @@ public class Shell {
         public Builder addCommand(String[] commands, int code,
                                   OnCommandResultListener onCommandResultListener) {
             this.commands.add(new Command(commands, code, onCommandResultListener, null));
+            return this;
+        }
+
+        /**
+         * <p>
+         * Add commands to execute, with a callback. This callback gobbles the
+         * output line by line without buffering it and also returns the result
+         * code on completion.
+         * </p>
+         * <p>
+         * The thread on which the callback executes is dependent on various
+         * factors, see {@link Shell.Interactive} for further details
+         * </p>
+         *
+         * @param commands Commands to execute
+         * @param code User-defined value passed back to the callback
+         * @param onCommandLineListener Callback
+         * @return This Builder object for method chaining
+         */
+        public Builder addCommand(String[] commands, int code,
+                                            OnCommandLineListener onCommandLineListener) {
+            this.commands.add(new Command(commands, code, null, onCommandLineListener));
             return this;
         }
 
