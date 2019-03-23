@@ -1,16 +1,16 @@
 apply plugin: 'com.android.application'
 
 dependencies {
-    compile project(':libsuperuser')
+    implementation project(':libsuperuser')
 }
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21.1.0"
+    compileSdkVersion 26
+    buildToolsVersion '28.0.3'
 
     defaultConfig {
         minSdkVersion 4
-        targetSdkVersion 21
+        targetSdkVersion 26
     }
     
     sourceSets {
