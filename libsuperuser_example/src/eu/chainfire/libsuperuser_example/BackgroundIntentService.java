@@ -16,15 +16,16 @@
 
 package eu.chainfire.libsuperuser_example;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.JobIntentService;
 import eu.chainfire.libsuperuser.Application;
 import eu.chainfire.libsuperuser.Shell;
-import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
 /**
- * Example IntentService based class, to execute tasks in a background
+ * Example JobIntentService based class, to execute tasks in a background
  * thread. This would typically be used by BroadcastReceivers and other
  * fire-and-forget type calls.
  * 
@@ -33,7 +34,7 @@ import android.os.Bundle;
  * you would typically use an AsyncTask instead of a service like this.
  * (See MainActivity.java for that example)
  * 
- * Note that the IntentService's onHandleIntent call runs in a background
+ * Note that the JobIntentService's onHandleWork call runs in a background
  * thread, while a normal service's calls would run in the main thread,
  * unless you put in the extra work. This is an important distinction
  * that is often overlooked by beginners.
@@ -47,10 +48,28 @@ import android.os.Bundle;
  * This code leaves some room for extension - if you really wanted to
  * respond only to a single event that always does the same, this code
  * could have been a lot shorter.
+ *
+ * NOTE: We transitioned from IntentService to JobIntentService to keep
+ * working on Android 8+ Oreo. A boot complete receiver can no longer start
+ * a direct service (such as IntentService), but it can schedule a job.
+ *
+ * The JobIntentService from the androidx package (note the x) takes care
+ * of compatibility with pre-Oreo devices. Jobs have a time limit of
+ * approximately 5 minutes.
+ *
+ * They also require the BIND_JOB_SERVICE permission (see the manifest) !
  */
-public class BackgroundIntentService extends IntentService {
+public class BackgroundIntentService extends JobIntentService {
     // you could provide more options here, should you need them
     public static final String ACTION_BOOT_COMPLETE = "boot_complete";
+
+    private static int JOB_ID = 100000;
+    private static int getNextJobId() {
+        synchronized (BackgroundIntentService.class) {
+            JOB_ID += 1;
+            return JOB_ID;
+        }
+    }
 
     public static void performAction(Context context, String action) {
         performAction(context, action, null);
@@ -66,16 +85,11 @@ public class BackgroundIntentService extends IntentService {
         Intent svc = new Intent(context, BackgroundIntentService.class);
         svc.setAction(action);
         if (extras != null) svc.putExtras(extras);
-        context.startService(svc);
-    }
-
-    public BackgroundIntentService() {
-        // If you forget this one, the app will crash
-        super("BackgroundIntentService");
+        enqueueWork(context, BackgroundIntentService.class, getNextJobId(), svc);
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
+    protected void onHandleWork(@NonNull Intent intent) {
         String action = intent.getAction();
         if ((action == null) || (action.equals(""))) return;
 

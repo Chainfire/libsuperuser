@@ -21,11 +21,11 @@ import android.content.Context;
 import android.content.Intent;
 
 /**
- * Example BootCompleteReceiver that starts MyIntentService
- * (please see MyIntentService.java) to handle the task 
+ * Example BootCompleteReceiver that starts BackgroundIntentService
+ * (please see BackgroundIntentService.java) to handle the task
  * in a background thread 
  */
-public class BootCompleteReceiver extends BroadcastReceiver{
+public class BootCompleteReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         // What many beginners don't realize is that BroadcastReceivers like these
@@ -33,7 +33,7 @@ public class BootCompleteReceiver extends BroadcastReceiver{
         // ANRs. This is increasingly likely with the BOOT_COMPLETED receiver, as
         // the system is likely very busy when this receiver is called.
 
-        // In this example we are starting our MyIntentService to actually do the
+        // In this example we are starting our BackgroundIntentService to actually do the
         // work we want to happen, not only because "su" should specifically NEVER 
         // be called from a BroadcastReceiver, but also because you should be doing 
         // this even if you aren't calling "su". It's a good practise, and using 

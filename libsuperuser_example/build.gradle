@@ -2,14 +2,15 @@ apply plugin: 'com.android.application'
 
 dependencies {
     implementation project(':libsuperuser')
+    implementation 'androidx.appcompat:appcompat:1.0.2'
 }
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 28
     buildToolsVersion '28.0.3'
 
     defaultConfig {
-        minSdkVersion 4
+        minSdkVersion 14
         targetSdkVersion 26
     }
     
