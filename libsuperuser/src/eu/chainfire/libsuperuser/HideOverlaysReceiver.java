@@ -37,6 +37,7 @@ import android.content.Intent;
  * window possibly obscuring SuperSU dialogs".
  * </p>
  */
+@SuppressWarnings({"unused"})
 public abstract class HideOverlaysReceiver extends BroadcastReceiver {
     public static final String ACTION_HIDE_OVERLAYS = "eu.chainfire.supersu.action.HIDE_OVERLAYS";
     public static final String CATEGORY_HIDE_OVERLAYS = Intent.CATEGORY_INFO;

@@ -22,6 +22,7 @@ import android.util.Log;
 /**
  * Utility class for logging and debug features that (by default) does nothing when not in debug mode
  */
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Debug {
 
     // ----- DEBUGGING -----

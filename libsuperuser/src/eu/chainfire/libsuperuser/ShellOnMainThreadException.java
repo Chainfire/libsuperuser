@@ -20,7 +20,7 @@ package eu.chainfire.libsuperuser;
  * Exception class used to crash application when shell commands are executed
  * from the main thread, and we are in debug mode.
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "WeakerAccess"})
 public class ShellOnMainThreadException extends RuntimeException {
     public static final String EXCEPTION_COMMAND = "Application attempted to run a shell command from the main thread";
     public static final String EXCEPTION_NOT_IDLE = "Application attempted to wait for a non-idle shell to close on the main thread";

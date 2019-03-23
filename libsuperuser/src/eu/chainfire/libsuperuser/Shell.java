@@ -16,6 +16,7 @@
 
 package eu.chainfire.libsuperuser;
 
+import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -41,6 +42,7 @@ import eu.chainfire.libsuperuser.StreamGobbler.OnLineListener;
 /**
  * Class providing functionality to execute commands in a (root) shell
  */
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused", "StatementWithEmptyBody"})
 public class Shell {
     /**
      * <p>
@@ -116,8 +118,7 @@ public class Shell {
         try {
             // Combine passed environment with system environment
             if (environment != null) {
-                Map<String, String> newEnvironment = new HashMap<String, String>();
-                newEnvironment.putAll(System.getenv());
+                Map<String, String> newEnvironment = new HashMap<String, String>(System.getenv());
                 int split;
                 for (String entry : environment) {
                     if ((split = entry.indexOf("=")) >= 0) {
@@ -256,7 +257,7 @@ public class Shell {
          * @return Output of the commands, or null in case of an error
          */
         public static List<String> run(List<String> commands) {
-            return Shell.run("sh", commands.toArray(new String[commands.size()]), null, false);
+            return Shell.run("sh", commands.toArray(new String[0]), null, false);
         }
 
         /**
@@ -302,7 +303,7 @@ public class Shell {
          * case of an error
          */
         public static List<String> run(List<String> commands) {
-            return Shell.run("su", commands.toArray(new String[commands.size()]), null, false);
+            return Shell.run("su", commands.toArray(new String[0]), null, false);
         }
 
         /**
@@ -464,6 +465,7 @@ public class Shell {
          *
          * @return true if SELinux set to enforcing, or false in the case of permissive or not present
          */
+        @SuppressLint("PrivateApi")
         public static synchronized boolean isSELinuxEnforcing() {
             if (isSELinuxEnforcing == null) {
                 Boolean enforcing = null;
@@ -499,7 +501,7 @@ public class Shell {
                     // SELinux is typically in enforced mode, but emulators may have SELinux disabled
                     if (enforcing == null) {
                         try {
-                            Class seLinux = Class.forName("android.os.SELinux");
+                            Class<?> seLinux = Class.forName("android.os.SELinux");
                             Method isSELinuxEnforced = seLinux.getMethod("isSELinuxEnforced");
                             enforcing = (Boolean) isSELinuxEnforced.invoke(seLinux.newInstance());
                         } catch (Exception e) {
@@ -816,8 +818,7 @@ public class Shell {
          */
         public Builder addCommand(List<String> commands, int code,
                                   OnCommandResultListener onCommandResultListener) {
-            return addCommand(commands.toArray(new String[commands.size()]), code,
-                    onCommandResultListener);
+            return addCommand(commands.toArray(new String[0]), code, onCommandResultListener);
         }
 
         /**
@@ -838,8 +839,7 @@ public class Shell {
          */
         public Builder addCommand(List<String> commands, int code,
                                OnCommandLineListener onCommandLineListener) {
-            return addCommand(commands.toArray(new String[commands.size()]), code,
-                    onCommandLineListener);
+            return addCommand(commands.toArray(new String[0]), code, onCommandLineListener);
         }
 
         /**
@@ -1219,7 +1219,7 @@ public class Shell {
          */
         public void addCommand(List<String> commands, int code,
                                OnCommandResultListener onCommandResultListener) {
-            addCommand(commands.toArray(new String[commands.size()]), code, onCommandResultListener);
+            addCommand(commands.toArray(new String[0]), code, onCommandResultListener);
         }
 
         /**
@@ -1239,7 +1239,7 @@ public class Shell {
          */
         public void addCommand(List<String> commands, int code,
                                OnCommandLineListener onCommandLineListener) {
-            addCommand(commands.toArray(new String[commands.size()]), code, onCommandLineListener);
+            addCommand(commands.toArray(new String[0]), code, onCommandLineListener);
         }
 
         /**

@@ -45,6 +45,7 @@ import java.util.List;
  * </code>
  * </pre>
  */
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public abstract class Policy {
     /**
      * supolicy should be called as little as possible. We batch policies together. The command
@@ -134,6 +135,7 @@ public abstract class Policy {
      * @param allowBlocking allow method to perform blocking I/O for extra checks
      * @return Possibly empty List of commands, or null
      */
+    @SuppressWarnings("all")
     protected List<String> getInjectCommands(boolean allowBlocking) {
         synchronized (synchronizer) {
             // No reason to bother if we're in permissive mode

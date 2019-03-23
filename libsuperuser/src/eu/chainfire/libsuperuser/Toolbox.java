@@ -32,6 +32,7 @@ import java.util.Locale;
  * Very specific warning, the 'mount' included with toybox tends
  * to segfault, at least on the first few 6.0 firmwares.
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public class Toolbox {
     private static final int TOYBOX_SDK = 23;
 
@@ -42,6 +43,7 @@ public class Toolbox {
      * Initialize. Asks toybox which commands it supports. Throws an exception if called from
      * the main thread in debug mode.
      */
+    @SuppressWarnings("all")
     public static void init() {
         // already inited ?
         if (toybox != null) return;

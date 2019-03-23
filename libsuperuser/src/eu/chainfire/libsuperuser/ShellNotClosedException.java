@@ -19,7 +19,7 @@ package eu.chainfire.libsuperuser;
 /**
  * Exception class used to notify developer that a shell was not close()d
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "WeakerAccess"})
 public class ShellNotClosedException extends RuntimeException {
     public static final String EXCEPTION_NOT_CLOSED = "Application did not close() interactive shell";
 
