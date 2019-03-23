@@ -54,9 +54,9 @@ public class StreamGobbler extends Thread {
      * possible to prevent a deadlock from occurring, or Process.waitFor() never
      * returning (as the buffer is full, pausing the native process)</p>
      *
-     * @param shell       Name of the shell
+     * @param shell Name of the shell
      * @param inputStream InputStream to read from
-     * @param outputList  {@literal List<String>} to write to, or null
+     * @param outputList {@literal List<String>} to write to, or null
      */
     public StreamGobbler(String shell, InputStream inputStream, List<String> outputList) {
         this.shell = shell;
@@ -71,8 +71,8 @@ public class StreamGobbler extends Thread {
      * possible to prevent a deadlock from occurring, or Process.waitFor() never
      * returning (as the buffer is full, pausing the native process)</p>
      *
-     * @param shell          Name of the shell
-     * @param inputStream    InputStream to read from
+     * @param shell Name of the shell
+     * @param inputStream InputStream to read from
      * @param onLineListener OnLineListener callback
      */
     public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener) {

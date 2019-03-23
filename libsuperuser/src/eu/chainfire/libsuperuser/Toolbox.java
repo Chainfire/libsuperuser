@@ -84,7 +84,7 @@ public class Toolbox {
      * M+ : "toybox chmod 0.0 /some/file/somewhere"
      *
      * @param format String to format. First word is the applet name.
-     * @param args   Arguments passed to String.format
+     * @param args Arguments passed to String.format
      * @return Formatted String prefixed with either toolbox or toybox
      */
     public static String command(String format, Object... args) {
