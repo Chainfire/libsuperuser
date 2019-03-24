@@ -1,0 +1,142 @@
+package eu.chainfire.libsuperuser;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+
+public class MarkerInputStream extends InputStream {
+    private static final String EXCEPTION_EOF = "EOF encountered, shell probably died";
+
+    private final StreamGobbler gobbler;
+    private final InputStream inputStream;
+    private final byte[] marker;
+    private final int markerLength;
+    private final int markerMaxLength;
+    private final byte[] read1 = new byte[1];
+    private final byte[] buffer = new byte[65536];
+    private int bufferUsed = 0;
+    private volatile boolean eof = false;
+
+    public MarkerInputStream(StreamGobbler gobbler, String marker) throws UnsupportedEncodingException {
+        this.gobbler = gobbler;
+        this.gobbler.suspendGobbling();
+        this.inputStream = gobbler.getInputStream();
+        this.marker = marker.getBytes("UTF-8");
+        this.markerLength = marker.length();
+        this.markerMaxLength = marker.length() + 5; // marker + space + exitCode(max(3)) + \n
+    }
+
+    @Override
+    public int read() throws IOException {
+        int r = read(read1, 0, 1);
+        if (r < 0) return -1;
+        return (int)read1[0];
+    }
+
+    @Override
+    public int read(byte[] b) throws IOException {
+        return read(b, 0, b.length);
+    }
+
+    private void fill(int safeSizeToWaitFor) throws IOException {
+        // fill up our own buffer
+        if (isEOF()) return;
+        try {
+            int a;
+            while (((a = inputStream.available()) > 0) || (safeSizeToWaitFor > 0)) {
+                Debug.log("available: " + String.valueOf(inputStream.available()));
+                int left = buffer.length - bufferUsed;
+                if (left == 0) return;
+                int r = inputStream.read(buffer, bufferUsed, Math.max(safeSizeToWaitFor, Math.min(a, left)));
+                if (r >= 0) {
+                    bufferUsed += r;
+                    safeSizeToWaitFor -= r;
+                } else {
+                    // This shouldn't happen *unless* we have both the full content and the end
+                    // marker, otherwise the shell was interrupted/died. An IOException is raised
+                    // in read() below if that is the case.
+                    setEOF();
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            setEOF();
+        }
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        fill(markerLength - bufferUsed);
+
+        // we need our buffer to be big enough to detect the marker
+        if (bufferUsed < markerLength) return 0;
+
+        // see if we have our marker
+        int match = -1;
+        for (int i = Math.max(0, bufferUsed - markerMaxLength); i < bufferUsed; i++) {
+            boolean found = true;
+            for (int j = 0; j < markerLength; j++) {
+                if (buffer[i + j] != marker[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                match = i;
+                break;
+            }
+        }
+
+        if (match == 0) {
+            // marker is at the front of the buffer
+            while (buffer[bufferUsed -1] != (byte)'\n') {
+                if (isEOF()) throw new IOException(EXCEPTION_EOF);
+                fill(1);
+            }
+            gobbler.getOnLineListener().onLine(new String(buffer, 0, bufferUsed - 1, "UTF-8"));
+            return -1;
+        } else {
+            int ret;
+            if (match == -1) {
+                if (isEOF()) throw new IOException(EXCEPTION_EOF);
+
+                // marker isn't in the buffer, drain as far as possible while keeping some space
+                // leftover so we can still find the marker if its read is split between two fill()
+                // calls
+                ret = Math.min(len, bufferUsed - markerMaxLength);
+            } else {
+                // even if eof, it is possibly we have both the content and the end marker, which
+                // counts as a completed command, so we don't throw IOException here
+
+                // marker found, max drain up to marker, this will eventually cause the marker to be
+                // at the front of the buffer
+                ret = Math.min(len, match);
+            }
+            if (ret > 0) {
+                System.arraycopy(buffer, 0, b, off, ret);
+                bufferUsed -= ret;
+                System.arraycopy(buffer, ret, buffer, 0, bufferUsed);
+            } else {
+                try {
+                    // prevent 100% CPU on reading from for example /dev/random
+                    Thread.sleep(4);
+                } catch (Exception e) {
+                }
+            }
+            return ret;
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        // no action
+    }
+
+    public synchronized boolean isEOF() {
+        return eof;
+    }
+
+    public synchronized void setEOF() {
+        eof = true;
+    }
+}

@@ -603,6 +603,11 @@ public class Shell {
         void onCommandResult(int commandCode, int exitCode);
     }
 
+    public interface OnCommandInputStreamListener extends OnResult {
+        void onInputStream(InputStream inputStream);
+        void onCommandResult(int commandCode, int exitCode);
+    }
+
     /**
      * Internal class to store command block properties
      */
@@ -613,15 +618,20 @@ public class Shell {
         private final int code;
         private final OnCommandResultListener onCommandResultListener;
         private final OnCommandLineListener onCommandLineListener;
+        private final OnCommandInputStreamListener onCommandInputStreamListener;
         private final String marker;
+
+        private volatile MarkerInputStream markerInputStream = null;
 
         public Command(String[] commands, int code,
                        OnCommandResultListener onCommandResultListener,
-                       OnCommandLineListener onCommandLineListener) {
+                       OnCommandLineListener onCommandLineListener,
+                       OnCommandInputStreamListener onCommandInputStreamListener) {
             this.commands = commands;
             this.code = code;
             this.onCommandResultListener = onCommandResultListener;
             this.onCommandLineListener = onCommandLineListener;
+            this.onCommandInputStreamListener = onCommandInputStreamListener;
             this.marker = UUID.randomUUID().toString() + String.format("-%08x", ++commandCounter);
         }
     }
@@ -869,7 +879,7 @@ public class Shell {
          */
         public Builder addCommand(String[] commands, int code,
                                   OnCommandResultListener onCommandResultListener) {
-            this.commands.add(new Command(commands, code, onCommandResultListener, null));
+            this.commands.add(new Command(commands, code, onCommandResultListener, null, null));
             return this;
         }
 
@@ -891,7 +901,7 @@ public class Shell {
          */
         public Builder addCommand(String[] commands, int code,
                                             OnCommandLineListener onCommandLineListener) {
-            this.commands.add(new Command(commands, code, null, onCommandLineListener));
+            this.commands.add(new Command(commands, code, null, onCommandLineListener, null));
             return this;
         }
 
@@ -1125,7 +1135,7 @@ public class Shell {
                         watchdogTimeout = builder.watchdogTimeout;
                         onCommandResultListener.onCommandResult(0, exitCode, output);
                     }
-                }, null));
+                }, null, null));
             }
 
             if (!open() && (onCommandResultListener != null)) {
@@ -1267,7 +1277,7 @@ public class Shell {
          */
         public synchronized void addCommand(String[] commands, int code,
                                             OnCommandResultListener onCommandResultListener) {
-            this.commands.add(new Command(commands, code, onCommandResultListener, null));
+            this.commands.add(new Command(commands, code, onCommandResultListener, null, null));
             runNextCommand();
         }
 
@@ -1288,7 +1298,13 @@ public class Shell {
          */
         public synchronized void addCommand(String[] commands, int code,
                                             OnCommandLineListener onCommandLineListener) {
-            this.commands.add(new Command(commands, code, null, onCommandLineListener));
+            this.commands.add(new Command(commands, code, null, onCommandLineListener, null));
+            runNextCommand();
+        }
+
+        public synchronized void addCommand(String command, int code,
+                                            OnCommandInputStreamListener onCommandInputStreamListener) {
+            this.commands.add(new Command(new String[] { command }, code, null, null, onCommandInputStreamListener));
             runNextCommand();
         }
 
@@ -1322,7 +1338,7 @@ public class Shell {
                 Debug.log(String.format("[%s%%] WATCHDOG_EXIT", shell.toUpperCase(Locale.ENGLISH)));
             }
 
-            postCallback(command, exitCode, buffer);
+            postCallback(command, exitCode, buffer, null);
 
             // prevent multiple callbacks for the same command
             command = null;
@@ -1394,7 +1410,25 @@ public class Shell {
 
                         idle = false;
                         this.command = command;
-                        startWatchdog();
+                        if (command.onCommandInputStreamListener != null) {
+                            if (!STDOUT.isSuspended()) {
+                                if (Thread.currentThread().getId() == STDOUT.getId()) {
+                                    // if we're on the Gobbler thread we can suspend immediately,
+                                    // as we're not currently in a readLine() call
+                                    STDOUT.suspendGobbling();
+                                } else {
+                                    // if not, we trigger the readLine() call in the Gobbler to
+                                    // complete, and have the suspend triggered in the next
+                                    // onLine call
+                                    STDIN.write(("echo inputstream\n").getBytes("UTF-8"));
+                                    STDIN.flush();
+                                    STDOUT.waitForSuspend();
+                                }
+                            }
+                        } else {
+                            STDOUT.resumeGobbling();
+                            startWatchdog();
+                        }
                         for (String write : command.commands) {
                             Debug.logCommand(String.format("[%s+] %s",
                                     shell.toUpperCase(Locale.ENGLISH), write));
@@ -1403,6 +1437,10 @@ public class Shell {
                         STDIN.write(("echo " + command.marker + " $?\n").getBytes("UTF-8"));
                         STDIN.write(("echo " + command.marker + " >&2\n").getBytes("UTF-8"));
                         STDIN.flush();
+                        if (command.onCommandInputStreamListener != null) {
+                            command.markerInputStream = new MarkerInputStream(STDOUT, command.marker);
+                            postCallback(command, 0, null, command.markerInputStream);
+                        }
                     } catch (IOException e) {
                         // STDIN might have closed
                     }
@@ -1411,8 +1449,9 @@ public class Shell {
                 }
             } else if (!running) {
                 // our shell died for unknown reasons - abort all submissions
+                Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
                 while (commands.size() > 0) {
-                    postCallback(commands.remove(0), OnCommandResultListener.SHELL_DIED, null);
+                    postCallback(commands.remove(0), OnCommandResultListener.SHELL_DIED, null, null);
                 }
             }
 
@@ -1429,7 +1468,7 @@ public class Shell {
         private synchronized void processMarker() {
             if (command.marker.equals(lastMarkerSTDOUT)
                     && (command.marker.equals(lastMarkerSTDERR))) {
-                postCallback(command, lastExitCode, buffer);
+                postCallback(command, lastExitCode, buffer, null);
                 stopWatchdog();
                 command = null;
                 buffer = null;
@@ -1441,7 +1480,7 @@ public class Shell {
         /**
          * Process a normal STDOUT/STDERR line
          *
-         * @param line     Line to process
+         * @param line Line to process
          * @param listener Callback to call or null
          */
         private synchronized void processLine(String line, OnLineListener listener) {
@@ -1489,36 +1528,52 @@ public class Shell {
 
         /**
          * Schedule a callback to run on the appropriate thread
+         *
+         * @return if callback has already completed
          */
-        private void postCallback(final Command fCommand, final int fExitCode,
-                                  final List<String> fOutput) {
-            if (fCommand.onCommandResultListener == null && fCommand.onCommandLineListener == null) {
-                return;
+        private boolean postCallback(final Command fCommand, final int fExitCode,
+                                  final List<String> fOutput, final InputStream inputStream) {
+            if (fCommand.onCommandResultListener == null && fCommand.onCommandLineListener == null && fCommand.onCommandInputStreamListener == null) {
+                return true;
             }
             if (handler == null) {
-                if (fCommand.onCommandResultListener != null)
-                    fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode,
-                            fOutput);
-                if (fCommand.onCommandLineListener != null)
-                    fCommand.onCommandLineListener.onCommandResult(fCommand.code, fExitCode);
-                return;
+                if (inputStream == null) {
+                    if (fCommand.onCommandResultListener != null)
+                        fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode,
+                                fOutput);
+                    if (fCommand.onCommandLineListener != null)
+                        fCommand.onCommandLineListener.onCommandResult(fCommand.code, fExitCode);
+                    if (fCommand.onCommandInputStreamListener != null)
+                        fCommand.onCommandInputStreamListener.onCommandResult(fCommand.code, fExitCode);
+                } else if (fCommand.onCommandInputStreamListener != null) {
+                    fCommand.onCommandInputStreamListener.onInputStream(inputStream);
+                }
+                return true;
             }
             startCallback();
             handler.post(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        if (fCommand.onCommandResultListener != null)
-                            fCommand.onCommandResultListener.onCommandResult(fCommand.code,
-                                    fExitCode, fOutput);
-                        if (fCommand.onCommandLineListener != null)
-                            fCommand.onCommandLineListener
-                                    .onCommandResult(fCommand.code, fExitCode);
+                        if (inputStream == null) {
+                            if (fCommand.onCommandResultListener != null)
+                                fCommand.onCommandResultListener.onCommandResult(fCommand.code,
+                                        fExitCode, fOutput);
+                            if (fCommand.onCommandLineListener != null)
+                                fCommand.onCommandLineListener
+                                        .onCommandResult(fCommand.code, fExitCode);
+                            if (fCommand.onCommandInputStreamListener != null)
+                                fCommand.onCommandInputStreamListener
+                                        .onCommandResult(fCommand.code, fExitCode);
+                        } else if (fCommand.onCommandInputStreamListener != null) {
+                            fCommand.onCommandInputStreamListener.onInputStream(inputStream);
+                        }
                     } finally {
                         endCallback();
                     }
                 }
             });
+            return false;
         }
 
         /**
@@ -1566,6 +1621,17 @@ public class Shell {
                         process.getInputStream(), new OnLineListener() {
                     @Override
                     public void onLine(String line) {
+                        Debug.log("line[" + line + "]");
+
+                        Command cmd = command;
+                        if ((cmd != null) && (cmd.onCommandInputStreamListener != null)) {
+                            // we need to suspend the normal input reader
+                            if (line.equals("inputstream")) {
+                                STDOUT.suspendGobbling();
+                                return;
+                            }
+                        }
+
                         synchronized (Interactive.this) {
                             if (command == null) {
                                 return;

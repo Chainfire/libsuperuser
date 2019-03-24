@@ -43,10 +43,12 @@ public class StreamGobbler extends Thread {
         void onLine(String line);
     }
 
-    private String shell;
-    private BufferedReader reader;
-    private List<String> writer = null;
-    private OnLineListener listener = null;
+    private final String shell;
+    private final InputStream inputStream;
+    private final BufferedReader reader;
+    private final List<String> writer;
+    private final OnLineListener lineListener;
+    private volatile boolean active = true;
 
     /**
      * <p>StreamGobbler constructor</p>
@@ -61,8 +63,10 @@ public class StreamGobbler extends Thread {
      */
     public StreamGobbler(String shell, InputStream inputStream, List<String> outputList) {
         this.shell = shell;
+        this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
         writer = outputList;
+        lineListener = null;
     }
 
     /**
@@ -78,19 +82,31 @@ public class StreamGobbler extends Thread {
      */
     public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener) {
         this.shell = shell;
+        this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
-        listener = onLineListener;
+        lineListener = onLineListener;
+        writer = null;
     }
 
     @Override
     public void run() {
         // keep reading the InputStream until it ends (or an error occurs)
+        // optionally pausing when a command is executed that consumes the InputStream itself
+        boolean calledOnClose = false;
         try {
             String line;
             while ((line = reader.readLine()) != null) {
                 Debug.logOutput(String.format("[%s] %s", shell, line));
                 if (writer != null) writer.add(line);
-                if (listener != null) listener.onLine(line);
+                if (lineListener != null) lineListener.onLine(line);
+                while (!active) {
+                    synchronized (this) {
+                        try {
+                            this.wait(128);
+                        } catch (InterruptedException e) {
+                        }
+                    }
+                }
             }
         } catch (IOException e) {
             // reader probably closed, expected exit condition
@@ -102,5 +118,74 @@ public class StreamGobbler extends Thread {
         } catch (IOException e) {
             // read already closed
         }
+    }
+
+    /**
+     * <p>Resume consuming the input from the stream</p>
+     */
+    public void resumeGobbling() {
+        if (!active) {
+            synchronized (this) {
+                active = true;
+                this.notifyAll();
+            }
+        }
+    }
+
+    /**
+     * <p>Suspend gobbling, so other code may read from the InputStream instead</p>
+     *
+     * <p>This should <i>only</i> be called from the OnLineListener callback!</p>
+     */
+    public void suspendGobbling() {
+        synchronized (this) {
+            active = false;
+            this.notifyAll();
+        }
+    }
+
+    /**
+     * <p>Wait for gobbling to be suspended</p>
+     *
+     * <p>Obviously this cannot be called from the same thread as {@link #suspendGobbling()}</p>
+     */
+    public void waitForSuspend() {
+        synchronized (this) {
+            while (active) {
+                try {
+                    this.wait(32);
+                } catch (InterruptedException e) {
+                }
+            }
+        }
+    }
+
+    /**
+     * <p>Is gobbling suspended ?</p>
+     *
+     * @return is gobbling suspended?
+     */
+    public boolean isSuspended() {
+        synchronized (this) {
+            return !active;
+        }
+    }
+
+    /**
+     * <p>Get current source InputStream</p>
+     *
+     * @return source InputStream
+     */
+    public InputStream getInputStream() {
+        return inputStream;
+    }
+
+    /**
+     * <p>Get current OnLineListener</p>
+     *
+     * @return OnLineListener
+     */
+    public OnLineListener getOnLineListener() {
+        return lineListener;
     }
 }
