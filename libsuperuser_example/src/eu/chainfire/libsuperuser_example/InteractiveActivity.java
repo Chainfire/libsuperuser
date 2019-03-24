@@ -89,8 +89,13 @@ public class InteractiveActivity extends Activity {
             }
 
             @Override
-            public void onLine(String line) {
+            public void onSTDOUT(String line) {
                 appendLineToOutput(line);
+            }
+
+            @Override
+            public void onSTDERR(String line) {
+                appendLineToOutput("(stderr) " + line);
             }
         });
 
@@ -103,8 +108,13 @@ public class InteractiveActivity extends Activity {
             }
 
             @Override
-            public void onLine(String line) {
+            public void onSTDOUT(String line) {
                 appendLineToOutput(line);
+            }
+
+            @Override
+            public void onSTDERR(String line) {
+                appendLineToOutput("(stderr) " + line);
             }
         });
     }
@@ -129,18 +139,17 @@ public class InteractiveActivity extends Activity {
                     setWantSTDERR(true).
                     setWatchdogTimeout(5).
                     setMinimalLogging(true).
-                    open(new Shell.OnCommandResultListener() {
-
-                        // Callback to report whether the shell was successfully started up 
+                    open(new Shell.OnShellOpenResultListener() {
+                        // Callback to report whether the shell was successfully started up
                         @Override
-                        public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+                        public void onOpenResult(boolean success, int reason) {
                             // note: this will FC if you rotate the phone while the dialog is up
                             dialog.dismiss();
 
-                            if (exitCode != Shell.OnCommandResultListener.SHELL_RUNNING) {
-                                reportError("Error opening root shell: exitCode " + exitCode);
+                            if (!success) {
+                                reportError("Error opening root shell: exitCode " + reason);
                             } else {
-                                // Shell is up: send our first request 
+                                // Shell is up: send our first request
                                 sendRootCommand();
                             }
                         }
