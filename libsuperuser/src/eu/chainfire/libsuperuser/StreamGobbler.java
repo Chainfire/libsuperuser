@@ -43,11 +43,22 @@ public class StreamGobbler extends Thread {
         void onLine(String line);
     }
 
+    /**
+     * Stream closed callback interface
+     */
+    public interface OnStreamClosedListener {
+        /**
+         * <p>Stream closed callback</p>
+         */
+        void onStreamClosed();
+    }
+
     private final String shell;
     private final InputStream inputStream;
     private final BufferedReader reader;
     private final List<String> writer;
     private final OnLineListener lineListener;
+    private final OnStreamClosedListener streamClosedListener;
     private volatile boolean active = true;
 
     /**
@@ -67,6 +78,7 @@ public class StreamGobbler extends Thread {
         reader = new BufferedReader(new InputStreamReader(inputStream));
         writer = outputList;
         lineListener = null;
+        streamClosedListener = null;
     }
 
     /**
@@ -80,11 +92,12 @@ public class StreamGobbler extends Thread {
      * @param inputStream InputStream to read from
      * @param onLineListener OnLineListener callback
      */
-    public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener) {
+    public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener, OnStreamClosedListener onStreamClosedListener) {
         this.shell = shell;
         this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
         lineListener = onLineListener;
+        streamClosedListener = onStreamClosedListener;
         writer = null;
     }
 
@@ -104,12 +117,17 @@ public class StreamGobbler extends Thread {
                         try {
                             this.wait(128);
                         } catch (InterruptedException e) {
+                            // no action
                         }
                     }
                 }
             }
         } catch (IOException e) {
             // reader probably closed, expected exit condition
+            if (streamClosedListener != null) {
+                calledOnClose = true;
+                streamClosedListener.onStreamClosed();
+            }
         }
 
         // make sure our stream is closed and resources will be freed
@@ -117,6 +135,12 @@ public class StreamGobbler extends Thread {
             reader.close();
         } catch (IOException e) {
             // read already closed
+        }
+
+        if (!calledOnClose) {
+            if (streamClosedListener != null) {
+                streamClosedListener.onStreamClosed();
+            }
         }
     }
 
@@ -155,6 +179,7 @@ public class StreamGobbler extends Thread {
                 try {
                     this.wait(32);
                 } catch (InterruptedException e) {
+                    // no action
                 }
             }
         }

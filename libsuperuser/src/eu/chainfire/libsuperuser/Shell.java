@@ -38,6 +38,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import eu.chainfire.libsuperuser.StreamGobbler.OnLineListener;
+import eu.chainfire.libsuperuser.StreamGobbler.OnStreamClosedListener;
 
 /**
  * Class providing functionality to execute commands in a (root) shell
@@ -1616,6 +1617,28 @@ public class Shell {
                     process = Runtime.getRuntime().exec(shell, env);
                 }
 
+                OnStreamClosedListener onStreamClosedListener = new OnStreamClosedListener() {
+                    @Override
+                    public void onStreamClosed() {
+                        synchronized (Interactive.this) {
+                            if (command == null) {
+                                return;
+                            }
+
+                            // our shell died for unknown reasons - abort all submissions
+                            Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
+                            if (command.markerInputStream != null) {
+                                command.markerInputStream.setEOF();
+                            }
+                            postCallback(command, OnCommandResultListener.SHELL_DIED, null, null);
+                            command = null;
+                            while (commands.size() > 0) {
+                                postCallback(commands.remove(0), OnCommandResultListener.SHELL_DIED, null, null);
+                            }
+                        }
+                    }
+                };
+
                 STDIN = new DataOutputStream(process.getOutputStream());
                 STDOUT = new StreamGobbler(shell.toUpperCase(Locale.ENGLISH) + "-",
                         process.getInputStream(), new OnLineListener() {
@@ -1668,7 +1691,7 @@ public class Shell {
                             }
                         }
                     }
-                });
+                }, onStreamClosedListener);
                 STDERR = new StreamGobbler(shell.toUpperCase(Locale.ENGLISH) + "*",
                         process.getErrorStream(), new OnLineListener() {
                     @Override
@@ -1699,7 +1722,7 @@ public class Shell {
                             }
                         }
                     }
-                });
+                }, onStreamClosedListener);
 
                 // start gobbling and write our commands to the shell
                 STDOUT.start();
