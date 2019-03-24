@@ -1239,6 +1239,7 @@ public class Shell {
                 // Allow up to 60 seconds for SuperSU/Superuser dialog, then enable
                 // the user-specified timeout for all subsequent operations
                 watchdogTimeout = 60;
+                idle = false;
                 commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener2() {
                     @Override
                     public void onCommandResult(int commandCode, int exitCode, List<String> STDOUT, List<String> STDERR) {
