@@ -543,7 +543,7 @@ public class Shell {
      * DO NOT USE DIRECTLY. Base interface for result callbacks.
      */
     private interface OnResult {
-        // for any onCommandResult callback
+        // for any callback
         int WATCHDOG_EXIT = -1;
         int SHELL_DIED = -2;
 
@@ -554,11 +554,25 @@ public class Shell {
     }
 
     /**
+     * Callback for {@link Shell.Builder#open(OnShellOpenResultListener)}
+     */
+    public interface OnShellOpenResultListener extends OnResult {
+        /**
+         * Callback for shell open result
+         *
+         * @param success whether the shell is opened
+         * @param reason reason why the shell isn't opened
+         */
+        void onOpenResult(boolean success, int reason);
+    }
+
+    /**
      * Command result callback, notifies the recipient of the completion of a
      * command block, including the (last) exit code, and the full output
      *
      * @deprecated You probably want to use {@link OnCommandResultListener2} instead
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
     @Deprecated
     public interface OnCommandResultListener extends OnResult {
         /**
@@ -744,6 +758,7 @@ public class Shell {
     /**
      * Internal class to store command block properties
      */
+    @SuppressWarnings({"DeprecatedIsStillUsed", "deprecation"})
     private static class Command {
         private static int commandCounter = 0;
 
@@ -973,7 +988,7 @@ public class Shell {
          * </p>
          *
          * <p>
-         * {@link OnCommandResultListener}: provides only a callback with the result of the entire
+         * {@link OnCommandResultListener2}: provides only a callback with the result of the entire
          * command and the (last) exit code. The results are buffered until command completion, so
          * commands that generate massive amounts of output should use {@link OnCommandLineListener}
          * instead.
@@ -1089,13 +1104,13 @@ public class Shell {
 
         /**
          * Construct a {@link Shell.Interactive} instance, try to start the
-         * shell, and call onCommandResultListener to report success or failure
+         * shell, and call onShellOpenResultListener to report success or failure
          *
-         * @param onCommandResultListener Callback to return shell open status
+         * @param onShellOpenResultListener Callback to return shell open status
          * @return Interactive shell
          */
-        public Interactive open(OnCommandResultListener onCommandResultListener) {
-            return new Interactive(this, onCommandResultListener);
+        public Interactive open(OnShellOpenResultListener onShellOpenResultListener) {
+            return new Interactive(this, onShellOpenResultListener);
         }
     }
 
@@ -1200,7 +1215,7 @@ public class Shell {
          * @param builder Builder class to take values from
          */
         private Interactive(final Builder builder,
-                            final OnCommandResultListener onCommandResultListener) {
+                            final OnShellOpenResultListener onShellOpenResultListener) {
             autoHandler = builder.autoHandler;
             shell = builder.shell;
             wantSTDERR = builder.wantSTDERR;
@@ -1220,26 +1235,26 @@ public class Shell {
                 handler = builder.handler;
             }
 
-            if (onCommandResultListener != null) {
+            if (onShellOpenResultListener != null) {
                 // Allow up to 60 seconds for SuperSU/Superuser dialog, then enable
                 // the user-specified timeout for all subsequent operations
                 watchdogTimeout = 60;
-                commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener() {
-                    public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-                        if ((exitCode == OnCommandResultListener.SHELL_RUNNING) &&
-                                !Shell.parseAvailableResult(output, Shell.SU.isSU(shell))) {
+                commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener2() {
+                    @Override
+                    public void onCommandResult(int commandCode, int exitCode, List<String> STDOUT, List<String> STDERR) {
+                        if ((exitCode == OnCommandResultListener2.SHELL_RUNNING) &&
+                                !Shell.parseAvailableResult(STDOUT, Shell.SU.isSU(shell))) {
                             // shell is up, but it's brain-damaged
-                            exitCode = OnCommandResultListener.SHELL_WRONG_UID;
+                            exitCode = OnCommandResultListener2.SHELL_WRONG_UID;
                         }
                         watchdogTimeout = builder.watchdogTimeout;
-                        onCommandResultListener.onCommandResult(0, exitCode, output);
+                        onShellOpenResultListener.onOpenResult(exitCode == OnCommandResultListener2.SHELL_RUNNING, exitCode);
                     }
                 }));
             }
 
-            if (!open() && (onCommandResultListener != null)) {
-                onCommandResultListener.onCommandResult(0,
-                        OnCommandResultListener.SHELL_EXEC_FAILED, null);
+            if (!open() && (onShellOpenResultListener != null)) {
+                onShellOpenResultListener.onOpenResult(false, OnCommandResultListener2.SHELL_EXEC_FAILED);
             }
         }
 
@@ -1344,12 +1359,12 @@ public class Shell {
                 return;
 
             if (!isRunning()) {
-                exitCode = OnCommandResultListener.SHELL_DIED;
+                exitCode = OnResult.SHELL_DIED;
                 Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
             } else if (watchdogCount++ < watchdogTimeout) {
                 return;
             } else {
-                exitCode = OnCommandResultListener.WATCHDOG_EXIT;
+                exitCode = OnResult.WATCHDOG_EXIT;
                 Debug.log(String.format("[%s%%] WATCHDOG_EXIT", shell.toUpperCase(Locale.ENGLISH)));
             }
 
@@ -1467,7 +1482,7 @@ public class Shell {
                 // our shell died for unknown reasons - abort all submissions
                 Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
                 while (commands.size() > 0) {
-                    postCallback(commands.remove(0), OnCommandResultListener.SHELL_DIED, null, null, null);
+                    postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
                 }
             }
 
@@ -1667,10 +1682,10 @@ public class Shell {
                             if (command.markerInputStream != null) {
                                 command.markerInputStream.setEOF();
                             }
-                            postCallback(command, OnCommandResultListener.SHELL_DIED, null, null, null);
+                            postCallback(command, OnResult.SHELL_DIED, null, null, null);
                             command = null;
                             while (commands.size() > 0) {
-                                postCallback(commands.remove(0), OnCommandResultListener.SHELL_DIED, null, null, null);
+                                postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
                             }
                         }
                     }
