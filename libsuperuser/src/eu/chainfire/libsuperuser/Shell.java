@@ -539,6 +539,9 @@ public class Shell {
         }
     }
 
+    /**
+     * DO NOT USE DIRECTLY. Base interface for result callbacks.
+     */
     private interface OnResult {
         // for any onCommandResult callback
         int WATCHDOG_EXIT = -1;
@@ -578,11 +581,9 @@ public class Shell {
     }
 
     /**
-     * Command per line callback for parsing the output line by line without
-     * buffering It also notifies the recipient of the completion of a command
-     * block, including the (last) exit code.
+     * DO NOT USE DIRECTLY. Command result callback that doesn't cause output to be buffered
      */
-    public interface OnCommandLineListener extends OnResult, OnLineListener {
+    private interface OnCommandResultListenerUnbuffered extends OnResult {
         /**
          * <p>
          * Command result callback
@@ -594,6 +595,7 @@ public class Shell {
          * delays in this callback may pause the native process or even result
          * in a deadlock
          * </p>
+         *
          * <p>
          * See {@link Shell.Interactive} for threading details
          * </p>
@@ -604,9 +606,45 @@ public class Shell {
         void onCommandResult(int commandCode, int exitCode);
     }
 
-    public interface OnCommandInputStreamListener extends OnResult {
+    /**
+     * Command per line callback for parsing the output line by line without
+     * buffering. It also notifies the recipient of the completion of a command
+     * block, including the (last) exit code.
+     */
+    public interface OnCommandLineListener extends OnResult, OnLineListener, OnCommandResultListenerUnbuffered {
+    }
+
+    /**
+     * Command InputStream callback for direct access to STDOUT. It also notifies the
+     * recipient of the completion of a command block, including the (last) exit code.
+     */
+    public interface OnCommandInputStreamListener extends OnResult, OnCommandResultListenerUnbuffered {
+        /**
+         * <p>
+         * InputStream callback
+         * </p>
+         *
+         * <p>
+         * The read() methods will return -1 when all input is consumed, and throw an
+         * IOException if the shell died before all data being read.
+         * </p>
+         *
+         * <p>
+         * If no Handler is setup, this callback may be executed on one of the gobbler
+         * threads. In that case, it is important the callback returns as quickly as
+         * possible, as delays in this callback may pause the native process or even
+         * result in a deadlock
+         * </p>
+         *
+         * <p>
+         * If a Handler <i>is</i> setup and it executes callbacks on the main thread,
+         * you <i>should</i> offload handling to a different thread, as reading from
+         * the InputStream would block your UI
+         * </p>
+         *
+         * @param inputStream InputStream to read from
+         */
         void onInputStream(InputStream inputStream);
-        void onCommandResult(int commandCode, int exitCode);
     }
 
     /**
@@ -624,16 +662,28 @@ public class Shell {
 
         private volatile MarkerInputStream markerInputStream = null;
 
-        public Command(String[] commands, int code,
-                       OnCommandResultListener onCommandResultListener,
-                       OnCommandLineListener onCommandLineListener,
-                       OnCommandInputStreamListener onCommandInputStreamListener) {
+        public Command(String[] commands, int code, OnResult listener) {
             this.commands = commands;
             this.code = code;
-            this.onCommandResultListener = onCommandResultListener;
-            this.onCommandLineListener = onCommandLineListener;
-            this.onCommandInputStreamListener = onCommandInputStreamListener;
             this.marker = UUID.randomUUID().toString() + String.format("-%08x", ++commandCounter);
+
+            OnCommandResultListener commandResultListener = null;
+            OnCommandLineListener commandLineListener = null;
+            OnCommandInputStreamListener commandInputStreamListener = null;
+            if (listener != null) {
+                if (listener instanceof OnCommandInputStreamListener) {
+                    commandInputStreamListener = (OnCommandInputStreamListener)listener;
+                } else if (listener instanceof OnCommandLineListener) {
+                    commandLineListener = (OnCommandLineListener)listener;
+                } else if (listener instanceof OnCommandResultListener) {
+                    commandResultListener = (OnCommandResultListener)listener;
+                } else {
+                    throw new IllegalArgumentException("OnResult is not a supported callback interface");
+                }
+            }
+            this.onCommandResultListener = commandResultListener;
+            this.onCommandLineListener = commandLineListener;
+            this.onCommandInputStreamListener = commandInputStreamListener;
         }
     }
 
@@ -750,124 +800,88 @@ public class Shell {
         }
 
         /**
-         * Add a command to execute
+         * Add command to execute, without a callback
          *
          * @param command Command to execute
          * @return This Builder object for method chaining
          */
         public Builder addCommand(String command) {
-            return addCommand(command, 0, (OnCommandResultListener)null);
+            return addCommand(new String[] { command });
         }
 
         /**
-         * <p>
-         * Add a command to execute, with a callback to be called on completion
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param command Command to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandResultListener Callback to be called on completion
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(String command, int code,
-                                  OnCommandResultListener onCommandResultListener) {
-            return addCommand(new String[]{
-                    command
-            }, code, onCommandResultListener);
-        }
-
-        /**
-         * <p>
-         * Add a command to execute, with a callback. This callback gobbles the
-         * output line by line without buffering it and also returns the result
-         * code on completion.
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param command Command to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandLineListener Callback
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(String command, int code, OnCommandLineListener onCommandLineListener) {
-            return addCommand(new String[]{
-                    command
-            }, code, onCommandLineListener);
-        }
-
-        /**
-         * Add commands to execute
+         * Add commands to execute, without a callback
          *
          * @param commands Commands to execute
          * @return This Builder object for method chaining
          */
         public Builder addCommand(List<String> commands) {
-            return addCommand(commands, 0, (OnCommandResultListener)null);
+            return addCommand(commands.toArray(new String[0]));
         }
 
         /**
-         * <p>
-         * Add commands to execute, with a callback to be called on completion
-         * (of all commands)
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandResultListener Callback to be called on completion (of all commands)
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(List<String> commands, int code,
-                                  OnCommandResultListener onCommandResultListener) {
-            return addCommand(commands.toArray(new String[0]), code, onCommandResultListener);
-        }
-
-        /**
-         * <p>
-         * Add commands to execute, with a callback. This callback gobbles the
-         * output line by line without buffering it and also returns the result
-         * code on completion.
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandLineListener Callback
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(List<String> commands, int code,
-                               OnCommandLineListener onCommandLineListener) {
-            return addCommand(commands.toArray(new String[0]), code, onCommandLineListener);
-        }
-
-        /**
-         * Add commands to execute
+         * Add commands to execute, without a callback
          *
          * @param commands Commands to execute
          * @return This Builder object for method chaining
          */
         public Builder addCommand(String[] commands) {
-            return addCommand(commands, 0, (OnCommandResultListener)null);
+            return addCommand(commands, 0, null);
+        }
+
+        /**
+         * Add commands to execute with a callback. See {@link #addCommand(String[], int, OnResult)}
+         * for details
+         *
+         * @see #addCommand(String[], int, OnResult)
+         *
+         * @param command Command to execute
+         * @param code User-defined value passed back to the callback
+         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
+         * @return This Builder object for method chaining
+         */
+        public Builder addCommand(String command, int code, OnResult onResultListener) {
+            return addCommand(new String[] { command }, code, onResultListener);
+        }
+
+        /**
+         * Add commands to execute with a callback. See {@link #addCommand(String[], int, OnResult)}
+         * for details
+         *
+         * @see #addCommand(String[], int, OnResult)
+         *
+         * @param commands Commands to execute
+         * @param code User-defined value passed back to the callback
+         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
+         * @return This Builder object for method chaining
+         */
+        public Builder addCommand(List<String> commands, int code, OnResult onResultListener) {
+            return addCommand(commands.toArray(new String[0]), code, onResultListener);
         }
 
         /**
          * <p>
-         * Add commands to execute, with a callback to be called on completion
-         * (of all commands)
+         * Add commands to execute, with a callback. Several callback interfaces are supported
          * </p>
+         *
+         * <p>
+         * {@link OnCommandResultListener}: provides only a callback with the result of the entire
+         * command and the (last) exit code. The results are buffered until command completion, so
+         * commands that generate massive amounts of output should use {@link OnCommandLineListener}
+         * instead.
+         * </p>
+         *
+         * <p>
+         * {@link OnCommandLineListener}: provides a per-line callback without internal buffering.
+         * Also provides a command completion callback with the (last) exit code.
+         * </p>
+         *
+         * <p>
+         * {@link OnCommandInputStreamListener}: provides a callback that is called with an
+         * InputStream you can read STDOUT from directly. Also provides a command completion
+         * callback with the (last) exit code. Note that this callback ignores the watchdog.
+         * </p>
+         *
          * <p>
          * The thread on which the callback executes is dependent on various
          * factors, see {@link Shell.Interactive} for further details
@@ -875,34 +889,11 @@ public class Shell {
          *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
-         * @param onCommandResultListener Callback to be called on completion (of all commands)
+         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          * @return This Builder object for method chaining
          */
-        public Builder addCommand(String[] commands, int code,
-                                  OnCommandResultListener onCommandResultListener) {
-            this.commands.add(new Command(commands, code, onCommandResultListener, null, null));
-            return this;
-        }
-
-        /**
-         * <p>
-         * Add commands to execute, with a callback. This callback gobbles the
-         * output line by line without buffering it and also returns the result
-         * code on completion.
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandLineListener Callback
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(String[] commands, int code,
-                                            OnCommandLineListener onCommandLineListener) {
-            this.commands.add(new Command(commands, code, null, onCommandLineListener, null));
+        public Builder addCommand(String[] commands, int code, OnResult onResultListener) {
+            this.commands.add(new Command(commands, code, onResultListener));
             return this;
         }
 
@@ -1136,7 +1127,7 @@ public class Shell {
                         watchdogTimeout = builder.watchdogTimeout;
                         onCommandResultListener.onCommandResult(0, exitCode, output);
                     }
-                }, null, null));
+                }));
             }
 
             if (!open() && (onCommandResultListener != null)) {
@@ -1156,156 +1147,72 @@ public class Shell {
         }
 
         /**
-         * Add a command to execute
+         * Add command to execute, without a callback
          *
          * @param command Command to execute
          */
-        public void addCommand(String command) {
-            addCommand(command, 0, (OnCommandResultListener) null);
+        public synchronized void addCommand(String command) {
+            addCommand(new String[] { command });
         }
 
         /**
-         * <p>
-         * Add a command to execute, with a callback to be called on completion
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
+         * Add commands to execute, without a callback
+         *
+         * @param commands Commands to execute
+         */
+        public synchronized void addCommand(List<String> commands) {
+            addCommand(commands.toArray(new String[0]));
+        }
+
+        /**
+         * Add commands to execute, without a callback
+         *
+         * @param commands Commands to execute
+         */
+        public synchronized void addCommand(String[] commands) {
+            addCommand(commands, 0, null);
+        }
+
+        /**
+         * Add command to execute with a callback. See {@link Shell.Builder#addCommand(String[], int, OnResult)}
+         * for details
+         *
+         * @see Shell.Builder#addCommand(String[], int, OnResult)
          *
          * @param command Command to execute
          * @param code User-defined value passed back to the callback
-         * @param onCommandResultListener Callback to be called on completion
+         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          */
-        public void addCommand(String command, int code,
-                               OnCommandResultListener onCommandResultListener) {
-            addCommand(new String[]{
-                    command
-            }, code, onCommandResultListener);
+        public synchronized void addCommand(String command, int code, OnResult onResultListener) {
+            addCommand(new String[] { command }, code, onResultListener);
         }
 
         /**
-         * <p>
-         * Add a command to execute, with a callback. This callback gobbles the
-         * output line by line without buffering it and also returns the result
-         * code on completion.
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
+         * Add commands to execute with a callback. See {@link Shell.Builder#addCommand(String[], int, OnResult)}
+         * for details
          *
-         * @param command Command to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandLineListener Callback
-         */
-        public void addCommand(String command, int code, OnCommandLineListener onCommandLineListener) {
-            addCommand(new String[]{
-                    command
-            }, code, onCommandLineListener);
-        }
-
-        /**
-         * Add commands to execute
-         *
-         * @param commands Commands to execute
-         */
-        public void addCommand(List<String> commands) {
-            addCommand(commands, 0, (OnCommandResultListener) null);
-        }
-
-        /**
-         * <p>
-         * Add commands to execute, with a callback to be called on completion
-         * (of all commands)
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
+         * @see Shell.Builder#addCommand(String[], int, OnResult)
          *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
-         * @param onCommandResultListener Callback to be called on completion (of all commands)
+         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          */
-        public void addCommand(List<String> commands, int code,
-                               OnCommandResultListener onCommandResultListener) {
-            addCommand(commands.toArray(new String[0]), code, onCommandResultListener);
+        public synchronized void addCommand(List<String> commands, int code, OnResult onResultListener) {
+            addCommand(commands.toArray(new String[0]), code, onResultListener);
         }
 
         /**
-         * <p>
-         * Add commands to execute, with a callback. This callback gobbles the
-         * output line by line without buffering it and also returns the result
-         * code on completion.
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
+         * Add commands to execute with a callback. See {@link Shell.Builder#addCommand(String[], int, OnResult)}
+         * for details
+         *
+         * @see Shell.Builder#addCommand(String[], int, OnResult)
          *
          * @param commands Commands to execute
          * @param code User-defined value passed back to the callback
-         * @param onCommandLineListener Callback
+         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          */
-        public void addCommand(List<String> commands, int code,
-                               OnCommandLineListener onCommandLineListener) {
-            addCommand(commands.toArray(new String[0]), code, onCommandLineListener);
-        }
-
-        /**
-         * Add commands to execute
-         *
-         * @param commands Commands to execute
-         */
-        public void addCommand(String[] commands) {
-            addCommand(commands, 0, (OnCommandResultListener) null);
-        }
-
-        /**
-         * <p>
-         * Add commands to execute, with a callback to be called on completion
-         * (of all commands)
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandResultListener Callback to be called on completion (of all commands)
-         */
-        public synchronized void addCommand(String[] commands, int code,
-                                            OnCommandResultListener onCommandResultListener) {
-            this.commands.add(new Command(commands, code, onCommandResultListener, null, null));
-            runNextCommand();
-        }
-
-        /**
-         * <p>
-         * Add commands to execute, with a callback. This callback gobbles the
-         * output line by line without buffering it and also returns the result
-         * code on completion.
-         * </p>
-         * <p>
-         * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
-         * </p>
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onCommandLineListener Callback
-         */
-        public synchronized void addCommand(String[] commands, int code,
-                                            OnCommandLineListener onCommandLineListener) {
-            this.commands.add(new Command(commands, code, null, onCommandLineListener, null));
-            runNextCommand();
-        }
-
-        public synchronized void addCommand(String command, int code,
-                                            OnCommandInputStreamListener onCommandInputStreamListener) {
-            this.commands.add(new Command(new String[] { command }, code, null, null, onCommandInputStreamListener));
+        public synchronized void addCommand(String[] commands, int code, OnResult onResultListener) {
+            this.commands.add(new Command(commands, code, onResultListener));
             runNextCommand();
         }
 
