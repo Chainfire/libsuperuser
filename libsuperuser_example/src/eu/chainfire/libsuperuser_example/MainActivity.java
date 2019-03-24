@@ -31,7 +31,7 @@ import android.widget.TextView;
 import android.widget.Button;
 
 public class MainActivity extends Activity {
-    private class Startup extends AsyncTask<Void, Void, Void> {
+    private static class Startup extends AsyncTask<Void, Void, Void> {
         private ProgressDialog dialog = null;
         private Context context = null;
         private boolean suAvailable = false;
@@ -94,6 +94,8 @@ public class MainActivity extends Activity {
                 }
             }
             ((TextView)findViewById(R.id.text)).setText(sb.toString());
+
+            setContext(null);
         }
     }
 
