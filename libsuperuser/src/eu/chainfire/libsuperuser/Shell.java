@@ -817,6 +817,7 @@ public class Shell {
         private boolean autoHandler = true;
         private String shell = "sh";
         private boolean wantSTDERR = false;
+        private boolean shellDiesOnSTDOUTERRClose = true;
         private boolean detectOpen = true;
         private List<Command> commands = new LinkedList<Command>();
         private Map<String, String> environment = new HashMap<String, String>();
@@ -917,6 +918,29 @@ public class Shell {
         @Deprecated
         public Builder setDetectOpen(boolean detectOpen) {
             this.detectOpen = detectOpen;
+            return this;
+        }
+
+        /**
+         * <p>
+         * Treat STDOUT/STDERR close as shell death ?
+         * </p>
+         *
+         * <p>
+         * You probably want to keep this turned on. It is not
+         * completely unthinkable you may need to turn this off,
+         * but it is unlikely. Turning it off will break dead
+         * shell detection on commands providing an InputStream
+         * </p>
+         *
+         * @deprecated New users should leave the default unless absolutely necessary
+         *
+         * @param shellDies Treat STDOUT/STDERR close as shell death (default true)
+         * @return This Builder object for method chaining
+         */
+        @Deprecated
+        public Builder setShellDiesOnSTDOUTERRClose(boolean shellDies) {
+            this.shellDiesOnSTDOUTERRClose = shellDies;
             return this;
         }
 
@@ -1221,6 +1245,7 @@ public class Shell {
         private final Handler handler;
         private final boolean autoHandler;
         private final String shell;
+        private boolean shellDiesOnSTDOUTERRClose;
         private final boolean wantSTDERR;
         private final List<Command> commands;
         private final Map<String, String> environment;
@@ -1260,6 +1285,7 @@ public class Shell {
                               final OnShellOpenResultListener onShellOpenResultListener) {
             autoHandler = builder.autoHandler;
             shell = builder.shell;
+            shellDiesOnSTDOUTERRClose = builder.shellDiesOnSTDOUTERRClose;
             wantSTDERR = builder.wantSTDERR;
             commands = builder.commands;
             environment = builder.environment;
@@ -1754,20 +1780,22 @@ public class Shell {
                 OnStreamClosedListener onStreamClosedListener = new OnStreamClosedListener() {
                     @Override
                     public void onStreamClosed() {
-                        synchronized (Interactive.this) {
-                            if (command == null) {
-                                return;
-                            }
+                        if (shellDiesOnSTDOUTERRClose || !isRunning()) {
+                            synchronized (Interactive.this) {
+                                if (command == null) {
+                                    return;
+                                }
 
-                            // our shell died for unknown reasons - abort all submissions
-                            Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
-                            if (command.markerInputStream != null) {
-                                command.markerInputStream.setEOF();
-                            }
-                            postCallback(command, OnResult.SHELL_DIED, null, null, null);
-                            command = null;
-                            while (commands.size() > 0) {
-                                postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
+                                // our shell died for unknown reasons - abort all submissions
+                                Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
+                                if (command.markerInputStream != null) {
+                                    command.markerInputStream.setEOF();
+                                }
+                                postCallback(command, OnResult.SHELL_DIED, null, null, null);
+                                command = null;
+                                while (commands.size() > 0) {
+                                    postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
+                                }
                             }
                         }
                     }
