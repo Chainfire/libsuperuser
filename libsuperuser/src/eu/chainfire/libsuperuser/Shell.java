@@ -1268,6 +1268,7 @@ public class Shell {
 
         private final Object idleSync = new Object();
         private final Object callbackSync = new Object();
+        private final List<String> emptyStringList = new ArrayList<String>();
 
         private volatile int lastExitCode = 0;
         private volatile String lastMarkerSTDOUT = null;
@@ -1701,9 +1702,9 @@ public class Shell {
             if ((handler == null) || (fCommand.commands == availableTestCommands)) {
                 if (inputStream == null) {
                     if (fCommand.onCommandResultListener != null)
-                        fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode, fSTDOUT);
+                        fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode, fSTDOUT != null ? fSTDOUT : emptyStringList);
                     if (fCommand.onCommandResultListener2 != null)
-                        fCommand.onCommandResultListener2.onCommandResult(fCommand.code, fExitCode, fSTDOUT, fSTDERR);
+                        fCommand.onCommandResultListener2.onCommandResult(fCommand.code, fExitCode, fSTDOUT != null ? fSTDOUT : emptyStringList, fSTDERR != null ? fSTDERR : emptyStringList);
                     if (fCommand.onCommandLineListener != null)
                         fCommand.onCommandLineListener.onCommandResult(fCommand.code, fExitCode);
                     if (fCommand.onCommandInputStreamListener != null)
@@ -1720,9 +1721,9 @@ public class Shell {
                     try {
                         if (inputStream == null) {
                             if (fCommand.onCommandResultListener != null)
-                                fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode, fSTDOUT);
+                                fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode, fSTDOUT != null ? fSTDOUT : emptyStringList);
                             if (fCommand.onCommandResultListener2 != null)
-                                fCommand.onCommandResultListener2.onCommandResult(fCommand.code, fExitCode, fSTDOUT, fSTDERR);
+                                fCommand.onCommandResultListener2.onCommandResult(fCommand.code, fExitCode, fSTDOUT != null ? fSTDOUT : emptyStringList, fSTDERR != null ? fSTDERR : emptyStringList);
                             if (fCommand.onCommandLineListener != null)
                                 fCommand.onCommandLineListener.onCommandResult(fCommand.code, fExitCode);
                             if (fCommand.onCommandInputStreamListener != null)
