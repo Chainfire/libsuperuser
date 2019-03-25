@@ -738,16 +738,24 @@ public class Shell {
          * </p>
          *
          * <p>
-         * If no Handler is setup, this callback may be executed on one of the gobbler
-         * threads. In that case, it is important the callback returns as quickly as
-         * possible, as delays in this callback may pause the native process or even
-         * result in a deadlock
+         * If a Handler is <i>not</i> setup, this callback may be executed on one of the
+         * gobbler threads. In that case, it is important the callback returns as quickly
+         * as possible, as delays in this callback may pause the native process or even
+         * result in a deadlock. It may also be executed on the main thread, in which
+         * case you should offload handling to a different thread
          * </p>
          *
          * <p>
          * If a Handler <i>is</i> setup and it executes callbacks on the main thread,
          * you <i>should</i> offload handling to a different thread, as reading from
          * the InputStream would block your UI
+         * </p>
+         *
+         * <p>
+         * You <i>must</i> drain the InputStream (read until it returns -1 or throws
+         * an IOException), otherwise execution of root commands will not continue.
+         * This cannot be solved automatically without keeping it safe to offload
+         * the InputStream to another thread.
          * </p>
          *
          * @param inputStream InputStream to read from
@@ -1214,7 +1222,7 @@ public class Shell {
          *
          * @param builder Builder class to take values from
          */
-        private Interactive(final Builder builder,
+        protected Interactive(final Builder builder,
                             final OnShellOpenResultListener onShellOpenResultListener) {
             autoHandler = builder.autoHandler;
             shell = builder.shell;
