@@ -1794,20 +1794,17 @@ public class Shell {
                     public void onStreamClosed() {
                         if (shellDiesOnSTDOUTERRClose || !isRunning()) {
                             synchronized (Interactive.this) {
-                                if (command == null) {
-                                    return;
-                                }
-
                                 // our shell died for unknown reasons - abort all submissions
-                                Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
-                                if (command.markerInputStream != null) {
-                                    command.markerInputStream.setEOF();
+                                if (command != null) {
+                                    if (command.markerInputStream != null) {
+                                        command.markerInputStream.setEOF();
+                                    }
+                                    postCallback(command, OnResult.SHELL_DIED, null, null, null);
+                                    command = null;
                                 }
-                                postCallback(command, OnResult.SHELL_DIED, null, null, null);
-                                command = null;
-                                while (commands.size() > 0) {
-                                    postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
-                                }
+                                closed = true;
+                                opening = false;
+                                runNextCommand();
                             }
                         }
                     }
