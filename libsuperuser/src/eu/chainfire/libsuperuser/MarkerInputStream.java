@@ -44,9 +44,20 @@ public class MarkerInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        int r = read(read1, 0, 1);
-        if (r < 0) return -1;
-        return (int)read1[0];
+        while (true) {
+            int r = read(read1, 0, 1);
+            if (r < 0) return -1;
+            if (r == 0) {
+                // wait for data to become available
+                try {
+                    Thread.sleep(16);
+                } catch (InterruptedException e) {
+                    // no action
+                }
+                continue;
+            }
+            return (int)read1[0] & 0xFF;
+        }
     }
 
     @Override
