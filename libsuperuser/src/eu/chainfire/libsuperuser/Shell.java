@@ -1334,10 +1334,15 @@ public class Shell {
                         if (onShellOpenResultListener != null) {
                             if (handler != null) {
                                 final int fExitCode = exitCode;
+                                startCallback();
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        onShellOpenResultListener.onOpenResult(fExitCode == OnShellOpenResultListener.SHELL_RUNNING, fExitCode);
+                                        try {
+                                            onShellOpenResultListener.onOpenResult(fExitCode == OnShellOpenResultListener.SHELL_RUNNING, fExitCode);
+                                        } finally {
+                                            endCallback();
+                                        }
                                     }
                                 });
                             } else {
@@ -1350,10 +1355,15 @@ public class Shell {
 
             if (!open() && (onShellOpenResultListener != null)) {
                 if (hasHandler()) {
+                    startCallback();
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            onShellOpenResultListener.onOpenResult(false, OnShellOpenResultListener.SHELL_EXEC_FAILED);
+                            try {
+                                onShellOpenResultListener.onOpenResult(false, OnShellOpenResultListener.SHELL_EXEC_FAILED);
+                            } finally {
+                                endCallback();
+                            }
                         }
                     });
                 } else {
