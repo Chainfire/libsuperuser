@@ -1265,6 +1265,7 @@ public class Shell {
         private volatile boolean closed = true;
         private volatile int callbacks = 0;
         private volatile int watchdogCount;
+        private volatile boolean doCloseWhenIdle = false;
 
         private final Object idleSync = new Object();
         private final Object callbackSync = new Object();
@@ -1603,9 +1604,13 @@ public class Shell {
                 onClosed();
             }
 
-            if (idle && notifyIdle) {
-                synchronized (idleSync) {
-                    idleSync.notifyAll();
+            if (idle) {
+                if (running && doCloseWhenIdle) {
+                    close();
+                } else if (idle && notifyIdle) {
+                    synchronized (idleSync) {
+                        idleSync.notifyAll();
+                    }
                 }
             }
         }
@@ -1990,6 +1995,13 @@ public class Shell {
             Debug.log(String.format("[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
 
             onClosed();
+        }
+
+        public synchronized void closeWhenIdle() {
+            doCloseWhenIdle = true;
+            if (idle) {
+                close();
+            }
         }
 
         /**
