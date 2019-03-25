@@ -1600,6 +1600,7 @@ public class Shell {
                 while (commands.size() > 0) {
                     postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
                 }
+                onClosed();
             }
 
             if (idle && notifyIdle) {
@@ -1911,6 +1912,13 @@ public class Shell {
         }
 
         /**
+         * Currently unused
+         */
+        private void onClosed() {
+            // callbacks may still be scheduled/running at this point
+        }
+
+        /**
          * Close shell and clean up all resources. Call this when you are done
          * with the shell. If the shell is not idle (all commands completed) you
          * should not call this method from the main UI thread because it may
@@ -1980,6 +1988,8 @@ public class Shell {
             }
 
             Debug.log(String.format("[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
+
+            onClosed();
         }
 
         /**
@@ -2007,6 +2017,8 @@ public class Shell {
             synchronized (idleSync) {
                 idleSync.notifyAll();
             }
+
+            onClosed();
         }
 
         /**
