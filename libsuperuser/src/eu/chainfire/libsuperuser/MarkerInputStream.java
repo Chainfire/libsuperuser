@@ -60,7 +60,6 @@ public class MarkerInputStream extends InputStream {
         try {
             int a;
             while (((a = inputStream.available()) > 0) || (safeSizeToWaitFor > 0)) {
-                Debug.log("available: " + String.valueOf(inputStream.available()));
                 int left = buffer.length - bufferUsed;
                 if (left == 0) return;
                 int r = inputStream.read(buffer, bufferUsed, Math.max(safeSizeToWaitFor, Math.min(a, left)));
