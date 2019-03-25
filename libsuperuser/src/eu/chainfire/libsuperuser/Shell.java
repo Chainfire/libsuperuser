@@ -1321,6 +1321,7 @@ public class Shell {
                             exitCode = OnCommandResultListener2.SHELL_WRONG_UID;
 
                             // we're otherwise technically not idle in this callback, deadlock
+                            // we're inside runNextCommand so we needn't bother with idleSync
                             idle = true;
                             close(); // triggers SHELL_DIED on remaining commands
                         }
