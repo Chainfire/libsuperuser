@@ -817,6 +817,7 @@ public class Shell {
         private boolean autoHandler = true;
         private String shell = "sh";
         private boolean wantSTDERR = false;
+        private boolean detectOpen = true;
         private List<Command> commands = new LinkedList<Command>();
         private Map<String, String> environment = new HashMap<String, String>();
         private OnLineListener onSTDOUTLineListener = null;
@@ -885,6 +886,38 @@ public class Shell {
          */
         public Builder useSU() {
             return setShell("su");
+        }
+
+        /**
+         * <p>
+         * Detect whether the shell was opened correctly ?
+         * </p>
+         *
+         * <p>
+         * When active, this runs test commands in the shell
+         * before it runs your own commands to determine if
+         * the shell is functioning correctly. This is also
+         * required for the {@link Interactive#isOpening()}
+         * method to return a proper result
+         * </p>
+         *
+         * <p>
+         * You probably want to keep this turned on, the
+         * option to turn it off exists only to support
+         * code using older versions of this library that
+         * may depend on these commands <i>not</i> being
+         * run
+         * </p>
+         *
+         * @deprecated New users should leave the default
+         *
+         * @param detectOpen Detect shell running properly (default true)
+         * @return This Builder object for method chaining
+         */
+        @Deprecated
+        public Builder setDetectOpen(boolean detectOpen) {
+            this.detectOpen = detectOpen;
+            return this;
         }
 
         /**
@@ -1202,6 +1235,7 @@ public class Shell {
         private ScheduledThreadPoolExecutor watchdog = null;
 
         private volatile boolean running = false;
+        private volatile boolean opening = false;
         private volatile boolean idle = true; // read/write only synchronized
         private volatile boolean closed = true;
         private volatile int callbacks = 0;
@@ -1223,7 +1257,7 @@ public class Shell {
          * @param builder Builder class to take values from
          */
         protected Interactive(final Builder builder,
-                            final OnShellOpenResultListener onShellOpenResultListener) {
+                              final OnShellOpenResultListener onShellOpenResultListener) {
             autoHandler = builder.autoHandler;
             shell = builder.shell;
             wantSTDERR = builder.wantSTDERR;
@@ -1233,36 +1267,70 @@ public class Shell {
             onSTDERRLineListener = builder.onSTDERRLineListener;
             watchdogTimeout = builder.watchdogTimeout;
 
-            // If a looper is available, we offload the callbacks from the
-            // gobbling threads
-            // to whichever thread created us. Would normally do this in open(),
-            // but then we could not declare handler as final
+            // If a looper is available, we offload the callbacks from the gobbling threads to
+            // whichever thread created us. Would normally do this in open(), but then we could
+            // not declare handler as final
             if ((Looper.myLooper() != null) && (builder.handler == null) && autoHandler) {
                 handler = new Handler();
             } else {
                 handler = builder.handler;
             }
 
-            if (onShellOpenResultListener != null) {
+            if ((onShellOpenResultListener != null) || builder.detectOpen) {
+                opening = true;
+
                 // Allow up to 60 seconds for SuperSU/Superuser dialog, then enable
                 // the user-specified timeout for all subsequent operations
                 watchdogTimeout = 60;
                 commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener2() {
                     @Override
                     public void onCommandResult(int commandCode, int exitCode, List<String> STDOUT, List<String> STDERR) {
+                        // we don't set opening to false here because idle must be set to true first
+                        // to prevent falling through if 'isOpening() || isIdle()' is called
+
+                        // this always runs in one of the gobbler threads, hard-coded
                         if ((exitCode == OnCommandResultListener2.SHELL_RUNNING) &&
                                 !Shell.parseAvailableResult(STDOUT, Shell.SU.isSU(shell))) {
                             // shell is up, but it's brain-damaged
                             exitCode = OnCommandResultListener2.SHELL_WRONG_UID;
+
+                            // we're otherwise technically not idle in this callback, deadlock
+                            idle = true;
+                            close(); // triggers SHELL_DIED on remaining commands
                         }
+
+                        // reset watchdog to user value
                         watchdogTimeout = builder.watchdogTimeout;
-                        onShellOpenResultListener.onOpenResult(exitCode == OnCommandResultListener2.SHELL_RUNNING, exitCode);
+
+                        // callback
+                        if (onShellOpenResultListener != null) {
+                            if (handler != null) {
+                                final int fExitCode = exitCode;
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        onShellOpenResultListener.onOpenResult(fExitCode == OnShellOpenResultListener.SHELL_RUNNING, fExitCode);
+                                    }
+                                });
+                            } else {
+                                onShellOpenResultListener.onOpenResult(exitCode == OnShellOpenResultListener.SHELL_RUNNING, exitCode);
+                            }
+                        }
                     }
                 }));
             }
 
             if (!open() && (onShellOpenResultListener != null)) {
-                onShellOpenResultListener.onOpenResult(false, OnCommandResultListener2.SHELL_EXEC_FAILED);
+                if (hasHandler()) {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            onShellOpenResultListener.onOpenResult(false, OnShellOpenResultListener.SHELL_EXEC_FAILED);
+                        }
+                    });
+                } else {
+                    onShellOpenResultListener.onOpenResult(false, OnShellOpenResultListener.SHELL_EXEC_FAILED);
+                }
             }
         }
 
@@ -1383,6 +1451,7 @@ public class Shell {
             bufferSTDOUT = null;
             bufferSTDERR = null;
             idle = true;
+            opening = false;
 
             watchdog.shutdown();
             watchdog = null;
@@ -1427,8 +1496,9 @@ public class Shell {
             boolean running = isRunning();
             if (!running)
                 idle = true;
+                opening = false;
 
-            if (running && idle && (commands.size() > 0)) {
+            if (running && !closed && idle && (commands.size() > 0)) {
                 Command command = commands.get(0);
                 commands.remove(0);
 
@@ -1486,8 +1556,8 @@ public class Shell {
                 } else {
                     runNextCommand(false);
                 }
-            } else if (!running) {
-                // our shell died for unknown reasons - abort all submissions
+            } else if (!running || closed) {
+                // our shell died for unknown reasons or was closed - abort all submissions
                 Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
                 while (commands.size() > 0) {
                     postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
@@ -1513,6 +1583,7 @@ public class Shell {
                 bufferSTDOUT = null;
                 bufferSTDERR = null;
                 idle = true;
+                opening = false;
                 runNextCommand();
             }
         }
@@ -1597,7 +1668,10 @@ public class Shell {
             ) {
                 return true;
             }
-            if (handler == null) {
+
+            // we run the shell open test commands result immediately even if we have a handler, so
+            // it may close the shell before other commands start and pass them SHELL_DIED exit code
+            if ((handler == null) || (fCommand.commands == availableTestCommands)) {
                 if (inputStream == null) {
                     if (fCommand.onCommandResultListener != null)
                         fCommand.onCommandResultListener.onCommandResult(fCommand.code, fExitCode, fSTDOUT);
@@ -1854,8 +1928,12 @@ public class Shell {
                 } catch (IOException e) {
                     // STDIN going missing is no reason to abort 
                 }
-                STDOUT.join();
-                STDERR.join();
+
+                // if we're called from the OnShellOpenResult callback wrapper, we would deadlock
+                if ((Thread.currentThread() != STDOUT) && (Thread.currentThread() != STDERR)) {
+                    STDOUT.join();
+                    STDERR.join();
+                }
                 stopWatchdog();
                 process.destroy();
             } catch (IOException e) {
@@ -1888,9 +1966,19 @@ public class Shell {
             }
 
             idle = true;
+            opening = false;
             synchronized (idleSync) {
                 idleSync.notifyAll();
             }
+        }
+
+        /**
+         * Is our shell currently being opened ?
+         *
+         * @return Shell opening ?
+         */
+        public boolean isOpening() {
+            return isRunning() && opening;
         }
 
         /**
@@ -1919,6 +2007,7 @@ public class Shell {
         public synchronized boolean isIdle() {
             if (!isRunning()) {
                 idle = true;
+                opening = false;
                 synchronized (idleSync) {
                     idleSync.notifyAll();
                 }
