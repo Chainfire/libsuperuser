@@ -27,6 +27,15 @@ import java.util.List;
  */
 @SuppressWarnings({"WeakerAccess"})
 public class StreamGobbler extends Thread {
+    private static int threadCounter = 0;
+    private static int incThreadCounter() {
+        synchronized (StreamGobbler.class) {
+            int ret = threadCounter;
+            threadCounter++;
+            return ret;
+        }
+    }
+
     /**
      * Line callback interface
      */
@@ -73,6 +82,7 @@ public class StreamGobbler extends Thread {
      * @param outputList {@literal List<String>} to write to, or null
      */
     public StreamGobbler(String shell, InputStream inputStream, List<String> outputList) {
+        super("Gobbler#" + String.valueOf(incThreadCounter()));
         this.shell = shell;
         this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -93,6 +103,7 @@ public class StreamGobbler extends Thread {
      * @param onLineListener OnLineListener callback
      */
     public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener, OnStreamClosedListener onStreamClosedListener) {
+        super("Gobbler#" + String.valueOf(incThreadCounter()));
         this.shell = shell;
         this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
