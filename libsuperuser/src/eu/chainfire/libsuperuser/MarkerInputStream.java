@@ -32,6 +32,7 @@ public class MarkerInputStream extends InputStream {
     private final byte[] buffer = new byte[65536];
     private int bufferUsed = 0;
     private volatile boolean eof = false;
+    private volatile boolean done = false;
 
     public MarkerInputStream(StreamGobbler gobbler, String marker) throws UnsupportedEncodingException {
         this.gobbler = gobbler;
@@ -91,7 +92,9 @@ public class MarkerInputStream extends InputStream {
     }
 
     @Override
-    public int read(byte[] b, int off, int len) throws IOException {
+    public synchronized int read(byte[] b, int off, int len) throws IOException {
+        if (done) return -1;
+
         fill(markerLength - bufferUsed);
 
         // we need our buffer to be big enough to detect the marker
@@ -120,6 +123,7 @@ public class MarkerInputStream extends InputStream {
                 fill(1);
             }
             gobbler.getOnLineListener().onLine(new String(buffer, 0, bufferUsed - 1, "UTF-8"));
+            done = true;
             return -1;
         } else {
             int ret;
@@ -154,8 +158,13 @@ public class MarkerInputStream extends InputStream {
     }
 
     @Override
-    public void close() throws IOException {
-        // no action
+    public synchronized void close() throws IOException {
+        if (!isEOF() && !done) {
+            // drain
+            byte[] buffer = new byte[1024];
+            while (read(buffer) >= 0) {
+            }
+        }
     }
 
     public synchronized boolean isEOF() {
