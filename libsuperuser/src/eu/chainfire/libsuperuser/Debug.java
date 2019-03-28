@@ -18,6 +18,7 @@ package eu.chainfire.libsuperuser;
 
 import android.os.Looper;
 import android.util.Log;
+import android.os.Process;
 
 /**
  * Utility class for logging and debug features that (by default) does nothing when not in debug mode
@@ -247,7 +248,7 @@ public class Debug {
      * @return Running on main thread ?
      */
     public static boolean onMainThread() {
-        return ((Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper()));
+        return ((Looper.myLooper() != null) && (Looper.myLooper() == Looper.getMainLooper()) && (Process.myUid() != 0));
     }
 
 }
