@@ -87,6 +87,7 @@ public abstract class Policy {
      *
      * @return canInject?
      */
+    @SuppressWarnings({"deprecation"})
     public static boolean canInject() {
         synchronized (synchronizer) {
             if (canInject != null) return canInject;
@@ -178,6 +179,7 @@ public abstract class Policy {
      * Inject the policies defined by getPolicies(). Throws an exception if called from
      * the main thread in debug mode.
      */
+    @SuppressWarnings({"deprecation"})
     public void inject() {
         synchronized (synchronizer) {
             // Get commands that inject our policies

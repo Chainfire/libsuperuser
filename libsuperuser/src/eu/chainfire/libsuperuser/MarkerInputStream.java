@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
+@SuppressWarnings("WeakerAccess")
 public class MarkerInputStream extends InputStream {
     private static final String EXCEPTION_EOF = "EOF encountered, shell probably died";
 
@@ -66,7 +67,7 @@ public class MarkerInputStream extends InputStream {
         return read(b, 0, b.length);
     }
 
-    private void fill(int safeSizeToWaitFor) throws IOException {
+    private void fill(int safeSizeToWaitFor) {
         // fill up our own buffer
         if (isEOF()) return;
         try {
@@ -151,12 +152,14 @@ public class MarkerInputStream extends InputStream {
                     // prevent 100% CPU on reading from for example /dev/random
                     Thread.sleep(4);
                 } catch (Exception e) {
+                    // no action
                 }
             }
             return ret;
         }
     }
 
+    @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public synchronized void close() throws IOException {
         if (!isEOF() && !done) {
