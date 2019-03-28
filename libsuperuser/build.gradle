@@ -27,7 +27,7 @@ android {
     }
 }
 
-version = "1.0.0." + (new Date()).format('yyyyMMddHHmm')
+version = "1.1.0." + (new Date()).format('yyyyMMddHHmm')
 group = "eu.chainfire"
 
 bintray {
