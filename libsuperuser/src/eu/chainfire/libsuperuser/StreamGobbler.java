@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Thread utility class continuously reading from an InputStream
@@ -101,6 +102,7 @@ public class StreamGobbler extends Thread {
      * @param shell Name of the shell
      * @param inputStream InputStream to read from
      * @param onLineListener OnLineListener callback
+     * @param onStreamClosedListener OnStreamClosedListener callback
      */
     public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener, OnStreamClosedListener onStreamClosedListener) {
         super("Gobbler#" + String.valueOf(incThreadCounter()));
@@ -120,7 +122,7 @@ public class StreamGobbler extends Thread {
         try {
             String line;
             while ((line = reader.readLine()) != null) {
-                Debug.logOutput(String.format("[%s] %s", shell, line));
+                Debug.logOutput(String.format(Locale.ENGLISH, "[%s] %s", shell, line));
                 if (writer != null) writer.add(line);
                 if (lineListener != null) lineListener.onLine(line);
                 while (!active) {

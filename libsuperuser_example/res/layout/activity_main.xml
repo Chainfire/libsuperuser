@@ -34,7 +34,8 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:text="@string/modes" />
 
         <Button
             android:id="@+id/refresh_button"

@@ -53,8 +53,8 @@ public class Toolbox {
             toybox = "";
         } else {
             if (Debug.getSanityChecksEnabledEffective() && Debug.onMainThread()) {
-                Debug.log(ShellOnMainThreadException.EXCEPTION_TOOLBOX);
-                throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_TOOLBOX);
+                Debug.log(Shell.ShellOnMainThreadException.EXCEPTION_TOOLBOX);
+                throw new Shell.ShellOnMainThreadException(Shell.ShellOnMainThreadException.EXCEPTION_TOOLBOX);
             }
 
             // ask toybox which commands it has, and store the info

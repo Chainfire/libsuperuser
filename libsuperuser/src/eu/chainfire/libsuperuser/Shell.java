@@ -17,7 +17,10 @@
 package eu.chainfire.libsuperuser;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
+import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 
 import java.io.DataOutputStream;
@@ -43,18 +46,79 @@ import eu.chainfire.libsuperuser.StreamGobbler.OnStreamClosedListener;
 /**
  * Class providing functionality to execute commands in a (root) shell
  */
-@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused", "StatementWithEmptyBody"})
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused", "StatementWithEmptyBody", "DeprecatedIsStillUsed", "deprecation"})
 public class Shell {
+    /**
+     * Exception class used to crash application when shell commands are executed
+     * from the main thread, and we are in debug mode.
+     */
+    @SuppressWarnings({"serial", "WeakerAccess"})
+    public static class ShellOnMainThreadException extends RuntimeException {
+        public static final String EXCEPTION_COMMAND = "Application attempted to run a shell command from the main thread";
+        public static final String EXCEPTION_NOT_IDLE = "Application attempted to wait for a non-idle shell to close on the main thread";
+        public static final String EXCEPTION_WAIT_IDLE = "Application attempted to wait for a shell to become idle on the main thread";
+        public static final String EXCEPTION_TOOLBOX = "Application attempted to init the Toolbox class from the main thread";
+
+        public ShellOnMainThreadException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Exception class used to notify developer that a shell was not close()d
+     */
+    @SuppressWarnings({"serial", "WeakerAccess"})
+    public static class ShellNotClosedException extends RuntimeException {
+        public static final String EXCEPTION_NOT_CLOSED = "Application did not close() interactive shell";
+
+        public ShellNotClosedException() {
+            super(EXCEPTION_NOT_CLOSED);
+        }
+    }
+
+    /**
+     * Exception class used to notify developer that a shell was not close()d
+     */
+    @SuppressWarnings({"serial", "WeakerAccess"})
+    public static class ShellDiedException extends Exception {
+        public static final String EXCEPTION_SHELL_DIED = "Shell died (or access was not granted)";
+
+        public ShellDiedException() {
+            super(EXCEPTION_SHELL_DIED);
+        }
+    }
+
+    private static volatile boolean redirectDeprecated = true;
+
+    /**
+     * @see #setRedirectDeprecated(boolean)
+     *
+     * @return Whether deprecated calls are automatically redirected to {@link PoolWrapper}
+     */
+    public static boolean isRedirectDeprecated() {
+        return redirectDeprecated;
+    }
+
+    /**
+     * Set whether deprecated calls (such as Shell.run, Shell.SH/SU.run, etc) should automatically
+     * redirect to Shell.Pool.?.run(). This is true by default, but it is possible to disable this
+     * behavior for backwards compatibility
+     *
+     * @param redirectDeprecated Whether deprecated calls should be automatically redirected to {@link PoolWrapper} (default true)
+     */
+    public static void setRedirectDeprecated(boolean redirectDeprecated) {
+        Shell.redirectDeprecated = redirectDeprecated;
+    }
+
     /**
      * <p>
      * Runs commands using the supplied shell, and returns the output, or null
      * in case of errors.
      * </p>
-     * <p>
-     * This method is deprecated and only provided for backwards compatibility.
-     * Use {@link #run(String, String[], String[], boolean)} instead, and see
-     * that same method for usage notes.
-     * </p>
+     *
+     * @deprecated This method is deprecated and only provided for backwards
+     * compatibility. Use {@link Pool}'s method instead. If {@link #isRedirectDeprecated()}
+     * is true (default), these calls are now automatically redirected.
      *
      * @param shell The shell to use for executing the commands
      * @param commands The commands to execute
@@ -94,6 +158,10 @@ public class Shell {
      * memory.
      * </p>
      *
+     * @deprecated This method is deprecated and only provided for backwards
+     * compatibility. Use {@link Pool}'s method instead. If {@link #isRedirectDeprecated()}
+     * is true (default), these calls are now automatically redirected.
+     *
      * @param shell The shell to use for executing the commands
      * @param commands The commands to execute
      * @param environment List of all environment variables (in 'key=value' format) or null for defaults
@@ -112,7 +180,13 @@ public class Shell {
             Debug.log(ShellOnMainThreadException.EXCEPTION_COMMAND);
             throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_COMMAND);
         }
-        Debug.logCommand(String.format("[%s%%] START", shellUpper));
+
+        if (redirectDeprecated) {
+            // use our Threaded pool implementation instead
+            return Pool.getWrapper(shell).run(commands, environment, wantSTDERR);
+        }
+
+        Debug.logCommand(String.format(Locale.ENGLISH, "[%s%%] START", shellUpper));
 
         List<String> res = Collections.synchronizedList(new ArrayList<String>());
 
@@ -148,7 +222,7 @@ public class Shell {
             STDERR.start();
             try {
                 for (String write : commands) {
-                    Debug.logCommand(String.format("[%s+] %s", shellUpper, write));
+                    Debug.logCommand(String.format(Locale.ENGLISH, "[%s+] %s", shellUpper, write));
                     STDIN.write((write + "\n").getBytes("UTF-8"));
                     STDIN.flush();
                 }
@@ -197,7 +271,7 @@ public class Shell {
             res = null;
         }
 
-        Debug.logCommand(String.format("[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
+        Debug.logCommand(String.format(Locale.ENGLISH, "[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
         return res;
     }
 
@@ -242,9 +316,12 @@ public class Shell {
         /**
          * Runs command and return output
          *
+         * @deprecated Consider using Shell.Pool.SH.run() instead
+         *
          * @param command The command to run
          * @return Output of the command, or null in case of an error
          */
+        @Deprecated
         public static List<String> run(String command) {
             return Shell.run("sh", new String[]{
                     command
@@ -254,9 +331,12 @@ public class Shell {
         /**
          * Runs commands and return output
          *
+         * @deprecated Consider using Shell.Pool.SH.run() instead
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null in case of an error
          */
+        @Deprecated
         public static List<String> run(List<String> commands) {
             return Shell.run("sh", commands.toArray(new String[0]), null, false);
         }
@@ -264,9 +344,12 @@ public class Shell {
         /**
          * Runs commands and return output
          *
+         * @deprecated Consider using Shell.Pool.SH.run() instead
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null in case of an error
          */
+        @Deprecated
         public static List<String> run(String[] commands) {
             return Shell.run("sh", commands, null, false);
         }
@@ -286,10 +369,13 @@ public class Shell {
         /**
          * Runs command as root (if available) and return output
          *
+         * @deprecated Consider using Shell.Pool.SU.run() instead
+         *
          * @param command The command to run
          * @return Output of the command, or null if root isn't available or in
          * case of an error
          */
+        @Deprecated
         public static List<String> run(String command) {
             return Shell.run("su", new String[]{
                     command
@@ -299,10 +385,13 @@ public class Shell {
         /**
          * Runs commands as root (if available) and return output
          *
+         * @deprecated Consider using Shell.Pool.SU.run() instead
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null if root isn't available or in
          * case of an error
          */
+        @Deprecated
         public static List<String> run(List<String> commands) {
             return Shell.run("su", commands.toArray(new String[0]), null, false);
         }
@@ -310,10 +399,13 @@ public class Shell {
         /**
          * Runs commands as root (if available) and return output
          *
+         * @deprecated Consider using Shell.Pool.SU.run() instead
+         *
          * @param commands The commands to run
          * @return Output of the commands, or null if root isn't available or in
          * case of an error
          */
+        @Deprecated
         public static List<String> run(String[] commands) {
             return Shell.run("su", commands, null, false);
         }
@@ -357,12 +449,31 @@ public class Shell {
             if (suVersion[idx] == null) {
                 String version = null;
 
-                List<String> ret = Shell.run(
-                        internal ? "su -V" : "su -v",
-                        new String[] { "exit" },
-                        null,
-                        false
-                );
+                List<String> ret;
+                if (!redirectDeprecated) {
+                    ret = Shell.run(
+                            internal ? "su -V" : "su -v",
+                            new String[] { "exit" },
+                            null,
+                            false
+                    );
+                } else {
+                    ret = new ArrayList<String>();
+                    try {
+                        ret = new ArrayList<String>();
+                        Shell.Pool.SH.run(
+                                new String[] {
+                                    internal ? "su -V" : "su -v",
+                                    "exit"
+                                },
+                                ret,
+                                null,
+                                false
+                        );
+                    } catch (ShellDiedException e) {
+                        // no action
+                    }
+                }
 
                 if (ret != null) {
                     for (String line : ret) {
@@ -408,7 +519,7 @@ public class Shell {
                 shell = shell.substring(pos + 1);
             }
 
-            return shell.equals("su");
+            return shell.toLowerCase(Locale.ENGLISH).equals("su");
         }
 
         /**
@@ -554,7 +665,7 @@ public class Shell {
     }
 
     /**
-     * Callback for {@link Shell.Builder#open(OnShellOpenResultListener)}
+     * Callback for {@link Builder#open(OnShellOpenResultListener)}
      */
     public interface OnShellOpenResultListener extends OnResult {
         /**
@@ -572,14 +683,12 @@ public class Shell {
      *
      * @deprecated You probably want to use {@link OnCommandResultListener2} instead
      */
-    @SuppressWarnings("DeprecatedIsStillUsed")
     @Deprecated
     public interface OnCommandResultListener extends OnResult {
         /**
          * <p>
          * Command result callback for STDOUT, optionally interleaved with STDERR
          * </p>
-         *
          * <p>
          * Depending on how and on which thread the shell was created, this
          * callback may be executed on one of the gobbler threads. In that case,
@@ -587,19 +696,16 @@ public class Shell {
          * delays in this callback may pause the native process or even result
          * in a deadlock
          * </p>
-         *
          * <p>
          * If wantSTDERR is set, output of STDOUT and STDERR is interleaved into
          * the output buffer. There are no guarantees of absolutely order
          * correctness (just like in a real terminal)
          * </p>
-         *
          * <p>
          * To get separate STDOUT and STDERR output, use {@link OnCommandResultListener2}
          * </p>
-         *
          * <p>
-         * See {@link Shell.Interactive} for threading details
+         * See {@link Interactive} for threading details
          * </p>
          *
          * @param commandCode Value previously supplied to addCommand
@@ -618,7 +724,6 @@ public class Shell {
          * <p>
          * Command result callback with separated STDOUT and STDERR
          * </p>
-         *
          * <p>
          * Depending on how and on which thread the shell was created, this
          * callback may be executed on one of the gobbler threads. In that case,
@@ -626,9 +731,8 @@ public class Shell {
          * delays in this callback may pause the native process or even result
          * in a deadlock
          * </p>
-         *
          * <p>
-         * See {@link Shell.Interactive} for threading details
+         * See {@link Interactive} for threading details
          * </p>
          *
          * @param commandCode Value previously supplied to addCommand
@@ -647,7 +751,6 @@ public class Shell {
          * <p>
          * Command result callback
          * </p>
-         *
          * <p>
          * Depending on how and on which thread the shell was created, this
          * callback may be executed on one of the gobbler threads. In that case,
@@ -655,9 +758,8 @@ public class Shell {
          * delays in this callback may pause the native process or even result
          * in a deadlock
          * </p>
-         *
          * <p>
-         * See {@link Shell.Interactive} for threading details
+         * See {@link Interactive} for threading details
          * </p>
          *
          * @param commandCode Value previously supplied to addCommand
@@ -671,8 +773,9 @@ public class Shell {
      */
     private interface OnCommandLineSTDOUT {
         /**
-         * <p>Line callback for STDOUT</p>
-         *
+         * <p>
+         * Line callback for STDOUT
+         * </p>
          * <p>
          * Depending on how and on which thread the shell was created, this
          * callback may be executed on one of the gobbler threads. In that case,
@@ -680,9 +783,8 @@ public class Shell {
          * delays in this callback may pause the native process or even result
          * in a deadlock
          * </p>
-         *
          * <p>
-         * See {@link Shell.Interactive} for threading details
+         * See {@link Interactive} for threading details
          * </p>
          *
          * @param line One line of STDOUT output
@@ -695,8 +797,9 @@ public class Shell {
      */
     private interface OnCommandLineSTDERR {
         /**
-         * <p>Line callback for STDERR</p>
-         *
+         * <p>
+         * Line callback for STDERR
+         * </p>
          * <p>
          * Depending on how and on which thread the shell was created, this
          * callback may be executed on one of the gobbler threads. In that case,
@@ -704,9 +807,8 @@ public class Shell {
          * delays in this callback may pause the native process or even result
          * in a deadlock
          * </p>
-         *
          * <p>
-         * See {@link Shell.Interactive} for threading details
+         * See {@link Interactive} for threading details
          * </p>
          *
          * @param line One line of STDERR output
@@ -723,20 +825,17 @@ public class Shell {
     }
 
     /**
-     * Command InputStream callback for direct access to STDOUT. It also notifies the
-     * recipient of the completion of a command block, including the (last) exit code.
+     * DO NOT USE DIRECTLY. InputStream callback
      */
-    public interface OnCommandInputStreamListener extends OnCommandResultListenerUnbuffered, OnCommandLineSTDERR {
+    public interface OnCommandInputStream extends OnCommandLineSTDERR {
         /**
          * <p>
          * InputStream callback
          * </p>
-         *
          * <p>
          * The read() methods will return -1 when all input is consumed, and throw an
          * IOException if the shell died before all data being read.
          * </p>
-         *
          * <p>
          * If a Handler is <i>not</i> setup, this callback may be executed on one of the
          * gobbler threads. In that case, it is important the callback returns as quickly
@@ -744,18 +843,16 @@ public class Shell {
          * result in a deadlock. It may also be executed on the main thread, in which
          * case you should offload handling to a different thread
          * </p>
-         *
          * <p>
          * If a Handler <i>is</i> setup and it executes callbacks on the main thread,
          * you <i>should</i> offload handling to a different thread, as reading from
          * the InputStream would block your UI
          * </p>
-         *
          * <p>
          * You <i>must</i> drain the InputStream (read until it returns -1 or throws
-         * an IOException), otherwise execution of root commands will not continue.
-         * This cannot be solved automatically without keeping it safe to offload
-         * the InputStream to another thread.
+         * an IOException), or call close(), otherwise execution of root commands will 
+         * not continue. This cannot be solved automatically without keeping it safe to 
+         * offload the InputStream to another thread.
          * </p>
          *
          * @param inputStream InputStream to read from
@@ -764,9 +861,15 @@ public class Shell {
     }
 
     /**
+     * Command InputStream callback for direct access to STDOUT. It also notifies the
+     * recipient of the completion of a command block, including the (last) exit code.
+     */
+    public interface OnCommandInputStreamListener extends OnCommandResultListenerUnbuffered, OnCommandInputStream {
+    }
+
+    /**
      * Internal class to store command block properties
      */
-    @SuppressWarnings({"DeprecatedIsStillUsed", "deprecation"})
     private static class Command {
         private static int commandCounter = 0;
 
@@ -780,10 +883,19 @@ public class Shell {
 
         private volatile MarkerInputStream markerInputStream = null;
 
-        public Command(String[] commands, int code, OnResult listener) {
-            this.commands = commands;
+        @SuppressWarnings("unchecked") // if the user passes in List<> of anything other than String, that's on them
+        public Command(Object commands, int code, OnResult listener) {
+            if (commands instanceof String) {
+                this.commands = new String[] { (String)commands };
+            } else if (commands instanceof List<?>) {
+                this.commands = ((List<String>)commands).toArray(new String[0]);
+            } else if (commands instanceof String[]) {
+                this.commands = (String[])commands;
+            } else {
+                throw new IllegalArgumentException("commands parameter must be of type String, List<String> or String[]");
+            }
             this.code = code;
-            this.marker = UUID.randomUUID().toString() + String.format("-%08x", ++commandCounter);
+            this.marker = UUID.randomUUID().toString() + String.format(Locale.ENGLISH, "-%08x", ++commandCounter);
 
             OnCommandResultListener commandResultListener = null;
             OnCommandResultListener2 commandResultListener2 = null;
@@ -810,7 +922,7 @@ public class Shell {
     }
 
     /**
-     * Builder class for {@link Shell.Interactive}
+     * Builder class for {@link Interactive}
      */
     public static class Builder {
         private Handler handler = null;
@@ -830,7 +942,7 @@ public class Shell {
          * Set a custom handler that will be used to post all callbacks to
          * </p>
          * <p>
-         * See {@link Shell.Interactive} for further details on threading and
+         * See {@link Interactive} for further details on threading and
          * handlers
          * </p>
          *
@@ -847,7 +959,7 @@ public class Shell {
          * Automatically create a handler if possible ? Default to true
          * </p>
          * <p>
-         * See {@link Shell.Interactive} for further details on threading and
+         * See {@link Interactive} for further details on threading and
          * handlers
          * </p>
          *
@@ -893,7 +1005,6 @@ public class Shell {
          * <p>
          * Detect whether the shell was opened correctly ?
          * </p>
-         *
          * <p>
          * When active, this runs test commands in the shell
          * before it runs your own commands to determine if
@@ -901,7 +1012,6 @@ public class Shell {
          * required for the {@link Interactive#isOpening()}
          * method to return a proper result
          * </p>
-         *
          * <p>
          * You probably want to keep this turned on, the
          * option to turn it off exists only to support
@@ -925,7 +1035,6 @@ public class Shell {
          * <p>
          * Treat STDOUT/STDERR close as shell death ?
          * </p>
-         *
          * <p>
          * You probably want to keep this turned on. It is not
          * completely unthinkable you may need to turn this off,
@@ -948,7 +1057,6 @@ public class Shell {
          * <p>
          * Set if STDERR output should be interleaved with STDOUT output (only) when {@link OnCommandResultListener} is used
          * </p>
-         *
          * <p>
          * If you want separate STDOUT and STDERR output, use {@link OnCommandResultListener2} instead
          * </p>
@@ -988,99 +1096,45 @@ public class Shell {
         }
 
         /**
-         * Add command to execute, without a callback
-         *
-         * @param command Command to execute
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(String command) {
-            return addCommand(new String[] { command });
-        }
-
-        /**
          * Add commands to execute, without a callback
          *
-         * @param commands Commands to execute
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          * @return This Builder object for method chaining
          */
-        public Builder addCommand(List<String> commands) {
-            return addCommand(commands.toArray(new String[0]));
-        }
-
-        /**
-         * Add commands to execute, without a callback
-         *
-         * @param commands Commands to execute
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(String[] commands) {
+        public Builder addCommand(Object commands) {
             return addCommand(commands, 0, null);
-        }
-
-        /**
-         * Add commands to execute with a callback. See {@link #addCommand(String[], int, OnResult)}
-         * for details
-         *
-         * @see #addCommand(String[], int, OnResult)
-         *
-         * @param command Command to execute
-         * @param code User-defined value passed back to the callback
-         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(String command, int code, OnResult onResultListener) {
-            return addCommand(new String[] { command }, code, onResultListener);
-        }
-
-        /**
-         * Add commands to execute with a callback. See {@link #addCommand(String[], int, OnResult)}
-         * for details
-         *
-         * @see #addCommand(String[], int, OnResult)
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
-         * @return This Builder object for method chaining
-         */
-        public Builder addCommand(List<String> commands, int code, OnResult onResultListener) {
-            return addCommand(commands.toArray(new String[0]), code, onResultListener);
         }
 
         /**
          * <p>
          * Add commands to execute, with a callback. Several callback interfaces are supported
          * </p>
-         *
          * <p>
          * {@link OnCommandResultListener2}: provides only a callback with the result of the entire
          * command and the (last) exit code. The results are buffered until command completion, so
          * commands that generate massive amounts of output should use {@link OnCommandLineListener}
          * instead.
          * </p>
-         *
          * <p>
          * {@link OnCommandLineListener}: provides a per-line callback without internal buffering.
          * Also provides a command completion callback with the (last) exit code.
          * </p>
-         *
          * <p>
          * {@link OnCommandInputStreamListener}: provides a callback that is called with an
          * InputStream you can read STDOUT from directly. Also provides a command completion
          * callback with the (last) exit code. Note that this callback ignores the watchdog.
          * </p>
-         *
          * <p>
          * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
+         * factors, see {@link Interactive} for further details
          * </p>
          *
-         * @param commands Commands to execute
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          * @param code User-defined value passed back to the callback
          * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          * @return This Builder object for method chaining
          */
-        public Builder addCommand(String[] commands, int code, OnResult onResultListener) {
+        public Builder addCommand(Object commands, int code, OnResult onResultListener) {
             this.commands.add(new Command(commands, code, onResultListener));
             return this;
         }
@@ -1091,7 +1145,7 @@ public class Shell {
          * </p>
          * <p>
          * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
+         * factors, see {@link Interactive} for further details
          * </p>
          *
          * @param onLineListener Callback to be called for each line
@@ -1108,7 +1162,7 @@ public class Shell {
          * </p>
          * <p>
          * The thread on which the callback executes is dependent on various
-         * factors, see {@link Shell.Interactive} for further details
+         * factors, see {@link Interactive} for further details
          * </p>
          *
          * @param onLineListener Callback to be called for each line
@@ -1159,7 +1213,7 @@ public class Shell {
         }
 
         /**
-         * Construct a {@link Shell.Interactive} instance, and start the shell
+         * Construct a {@link Interactive} instance, and start the shell
          *
          * @return Interactive shell
          */
@@ -1168,7 +1222,7 @@ public class Shell {
         }
 
         /**
-         * Construct a {@link Shell.Interactive} instance, try to start the
+         * Construct a {@link Interactive} instance, try to start the
          * shell, and call onShellOpenResultListener to report success or failure
          *
          * @param onShellOpenResultListener Callback to return shell open status
@@ -1177,11 +1231,166 @@ public class Shell {
         public Interactive open(OnShellOpenResultListener onShellOpenResultListener) {
             return new Interactive(this, onShellOpenResultListener);
         }
+
+        /**
+         * <p>
+         * Construct a {@link Threaded} instance, and start the shell
+         * </p>
+         * <p>
+         * {@link Threaded} ignores the {@link #setHandler(Handler)},
+         * {@link #setAutoHandler(boolean)}, {@link #setDetectOpen(boolean)}
+         * and {@link #setShellDiesOnSTDOUTERRClose(boolean)} settings on this
+         * Builder and uses its own values
+         * </p>
+         * <p>
+         * On API &gt;= 19, the return value is {@link ThreadedAutoCloseable}
+         * rather than {@link Threaded}
+         * </p>
+         *
+         * @return Threaded interactive shell
+         */
+        public Threaded openThreaded() {
+            return openThreadedEx(null, false);
+        }
+
+        /**
+         * <p>
+         * Construct a {@link Threaded} instance, try to start the
+         * shell, and call onShellOpenResultListener to report success or failure
+         * </p>
+         * <p>
+         * {@link Threaded} ignores the {@link #setHandler(Handler)},
+         * {@link #setAutoHandler(boolean)}, {@link #setDetectOpen(boolean)}
+         * and {@link #setShellDiesOnSTDOUTERRClose(boolean)} settings on this
+         * Builder and uses its own values
+         * </p>
+         * <p>
+         * On API &gt;= 19, the return value is {@link ThreadedAutoCloseable}
+         * rather than {@link Threaded}
+         * </p>
+         *
+         * @param onShellOpenResultListener Callback to return shell open status
+         * @return Threaded interactive shell
+         */
+        public Threaded openThreaded(OnShellOpenResultListener onShellOpenResultListener) {
+            return openThreadedEx(onShellOpenResultListener, false);
+        }
+
+        private Threaded openThreadedEx(OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
+            if (Build.VERSION.SDK_INT >= 19) {
+                return new ThreadedAutoCloseable(this, onShellOpenResultListener, pooled);
+            } else {
+                return new Threaded(this, onShellOpenResultListener, pooled);
+            }
+        }
+    }
+
+    /**
+     * Callback interface for {@link SyncCommands#run(Object, OnSyncCommandLineListener)}
+     */
+    public interface OnSyncCommandLineListener extends OnCommandLineSTDOUT, OnCommandLineSTDERR {
+    }
+
+    /**
+     * Callback interface for {@link SyncCommands#run(Object, OnSyncCommandInputStreamListener)}
+     */
+    public interface OnSyncCommandInputStreamListener extends OnCommandInputStream, OnCommandLineSTDERR {
+    }
+
+    /**
+     * Base interface for objects that support deprecated synchronous commands
+     */
+    @Deprecated
+    public interface DeprecatedSyncCommands {
+        /**
+         * Run commands, returning the output, or null on error
+         *
+         * @deprecated This methods exists only as drop-in replacement for Shell.SU/SH.run() methods and should not be used by new users
+         *
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
+         * @param wantSTDERR Return STDERR in the output ?
+         * @return Output of the commands, or null in case of an error
+         */
+        @Deprecated List<String> run(Object commands, boolean wantSTDERR);
+
+        /**
+         * Run commands, with a set environment, returning the output, or null on error
+         *
+         * @deprecated This methods exists only as drop-in replacement for Shell.SU/SH.run() methods and should not be used by new users
+         *
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
+         * @param environment List of all environment variables (in 'key=value' format) or null for defaults
+         * @param wantSTDERR Return STDERR in the output ?
+         * @return Output of the commands, or null in case of an error
+         */
+        @Deprecated List<String> run(Object commands, String[] environment, boolean wantSTDERR);
+    }
+
+    /**
+     * Base interface for objects that support synchronous commands
+     */
+    public interface SyncCommands {
+        /**
+         * Run commands and return exit code
+         * 
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
+         * @return Exit code
+         * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
+         */
+        int run(Object commands) throws ShellDiedException;
+
+        /**
+         * <p>
+         * Run commands and return STDOUT and STDERR output, and exit code
+         * </p>
+         * <p>
+         * Note that all output is buffered, and very large outputs may cause you to run out of
+         * memory.
+         * </p>
+         *
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
+         * @param STDOUT List&lt;String&gt; to receive STDOUT output, or null
+         * @param STDERR List&lt;String&gt; to receive STDERR output, or null
+         * @param clear Clear STDOUT/STDOUT before adding output ?
+         * @return Exit code
+         * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
+         */
+        int run(Object commands, List<String> STDOUT, List<String> STDERR, boolean clear) throws ShellDiedException;
+
+        /**
+         * <p>
+         * Run commands using a callback that receives per-line STDOUT and STDERR output as they happen, and returns exit code
+         * </p>
+         * <p>
+         * You should <i>not</i> call other synchronous methods from the callback
+         * </p>
+         *
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
+         * @param onSyncCommandLineListener Callback interface for per-line output
+         * @return Exit code
+         * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
+         */
+        int run(Object commands, OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException;
+
+        /**
+         * <p>
+         * Run commands using a callback that receives an InputStream for STDOUT and per-line STDERR output as it happens, and returns exit code
+         * </p>
+         * <p>
+         * You should <i>not</i> call other synchronous methods from the callback
+         * </p>
+         *
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
+         * @param onSyncCommandInputStreamListener Callback interface for InputStream output
+         * @return Exit code
+         * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
+         */
+        int run(Object commands, OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException;
     }
 
     /**
      * <p>
-     * An interactive shell - initially created with {@link Shell.Builder} -
+     * An interactive shell - initially created with {@link Builder} -
      * that executes blocks of commands you supply in the background, optionally
      * calling callbacks as each block completes.
      * </p>
@@ -1212,9 +1421,9 @@ public class Shell {
      * <p>
      * On which thread the callbacks execute is dependent on your
      * initialization. You can supply a custom Handler using
-     * {@link Shell.Builder#setHandler(Handler)} if needed. If you do not supply
+     * {@link Builder#setHandler(Handler)} if needed. If you do not supply
      * a custom Handler - unless you set
-     * {@link Shell.Builder#setAutoHandler(boolean)} to false - a Handler will
+     * {@link Builder#setAutoHandler(boolean)} to false - a Handler will
      * be auto-created if the thread used for instantiation of the object has a
      * Looper.
      * </p>
@@ -1227,7 +1436,7 @@ public class Shell {
      * </p>
      * <p>
      * The main thread must certainly have a Looper, thus if you call
-     * {@link Shell.Builder#open()} from the main thread, a handler will (by
+     * {@link Builder#open()} from the main thread, a handler will (by
      * default) be auto-created, and all the callbacks will be called on the
      * main thread. While this is often convenient and easy to code with, you
      * should be aware that if your callbacks are 'expensive' to execute, this
@@ -1235,14 +1444,14 @@ public class Shell {
      * </p>
      * <p>
      * Background threads usually do <em>not</em> have a Looper, so calling
-     * {@link Shell.Builder#open()} from such a background thread will (by
+     * {@link Builder#open()} from such a background thread will (by
      * default) result in all the callbacks being executed in one of the gobbler
      * threads. You will have to make sure the code you execute in these
      * callbacks is thread-safe.
      * </p>
      */
-    public static class Interactive {
-        private final Handler handler;
+    public static class Interactive implements SyncCommands {
+        protected final Handler handler;
         private final boolean autoHandler;
         private final String shell;
         private boolean shellDiesOnSTDOUTERRClose;
@@ -1257,18 +1466,23 @@ public class Shell {
         private DataOutputStream STDIN = null;
         private StreamGobbler STDOUT = null;
         private StreamGobbler STDERR = null;
+        private final Object STDclosedSync = new Object();
+        private boolean STDOUTclosed = false;
+        private boolean STDERRclosed = false;
         private ScheduledThreadPoolExecutor watchdog = null;
 
         private volatile boolean running = false;
+        private volatile boolean lastOpening = false;
         private volatile boolean opening = false;
         private volatile boolean idle = true; // read/write only synchronized
-        private volatile boolean closed = true;
-        private volatile int callbacks = 0;
+        protected volatile boolean closed = true;
+        protected volatile int callbacks = 0;
         private volatile int watchdogCount;
         private volatile boolean doCloseWhenIdle = false;
 
         private final Object idleSync = new Object();
-        private final Object callbackSync = new Object();
+        protected final Object callbackSync = new Object();
+        private final Object openingSync = new Object();
         private final List<String> emptyStringList = new ArrayList<String>();
 
         private volatile int lastExitCode = 0;
@@ -1305,6 +1519,7 @@ public class Shell {
             }
 
             if ((onShellOpenResultListener != null) || builder.detectOpen) {
+                lastOpening = true;
                 opening = true;
 
                 // Allow up to 60 seconds for SuperSU/Superuser dialog, then enable
@@ -1325,7 +1540,7 @@ public class Shell {
                             // we're otherwise technically not idle in this callback, deadlock
                             // we're inside runNextCommand so we needn't bother with idleSync
                             idle = true;
-                            close(); // triggers SHELL_DIED on remaining commands
+                            closeImmediately(); // triggers SHELL_DIED on remaining commands
                         }
 
                         // reset watchdog to user value
@@ -1355,7 +1570,7 @@ public class Shell {
             }
 
             if (!open() && (onShellOpenResultListener != null)) {
-                if (hasHandler()) {
+                if (handler != null) {
                     startCallback();
                     handler.post(new Runnable() {
                         @Override
@@ -1384,71 +1599,25 @@ public class Shell {
         }
 
         /**
-         * Add command to execute, without a callback
-         *
-         * @param command Command to execute
-         */
-        public synchronized void addCommand(String command) {
-            addCommand(new String[] { command });
-        }
-
-        /**
          * Add commands to execute, without a callback
          *
-         * @param commands Commands to execute
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          */
-        public synchronized void addCommand(List<String> commands) {
-            addCommand(commands.toArray(new String[0]));
-        }
-
-        /**
-         * Add commands to execute, without a callback
-         *
-         * @param commands Commands to execute
-         */
-        public synchronized void addCommand(String[] commands) {
+        public synchronized void addCommand(Object commands) {
             addCommand(commands, 0, null);
         }
 
         /**
-         * Add command to execute with a callback. See {@link Shell.Builder#addCommand(String[], int, OnResult)}
+         * Add commands to execute with a callback. See {@link Builder#addCommand(Object, int, OnResult)}
          * for details
          *
-         * @see Shell.Builder#addCommand(String[], int, OnResult)
+         * @see Shell.Builder#addCommand(Object, int, OnResult)
          *
-         * @param command Command to execute
+         * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          * @param code User-defined value passed back to the callback
          * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          */
-        public synchronized void addCommand(String command, int code, OnResult onResultListener) {
-            addCommand(new String[] { command }, code, onResultListener);
-        }
-
-        /**
-         * Add commands to execute with a callback. See {@link Shell.Builder#addCommand(String[], int, OnResult)}
-         * for details
-         *
-         * @see Shell.Builder#addCommand(String[], int, OnResult)
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
-         */
-        public synchronized void addCommand(List<String> commands, int code, OnResult onResultListener) {
-            addCommand(commands.toArray(new String[0]), code, onResultListener);
-        }
-
-        /**
-         * Add commands to execute with a callback. See {@link Shell.Builder#addCommand(String[], int, OnResult)}
-         * for details
-         *
-         * @see Shell.Builder#addCommand(String[], int, OnResult)
-         *
-         * @param commands Commands to execute
-         * @param code User-defined value passed back to the callback
-         * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
-         */
-        public synchronized void addCommand(String[] commands, int code, OnResult onResultListener) {
+        public synchronized void addCommand(Object commands, int code, OnResult onResultListener) {
             this.commands.add(new Command(commands, code, onResultListener));
             runNextCommand();
         }
@@ -1475,12 +1644,12 @@ public class Shell {
 
             if (!isRunning()) {
                 exitCode = OnResult.SHELL_DIED;
-                Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
+                Debug.log(String.format(Locale.ENGLISH, "[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
             } else if (watchdogCount++ < watchdogTimeout) {
                 return;
             } else {
                 exitCode = OnResult.WATCHDOG_EXIT;
-                Debug.log(String.format("[%s%%] WATCHDOG_EXIT", shell.toUpperCase(Locale.ENGLISH)));
+                Debug.log(String.format(Locale.ENGLISH, "[%s%%] WATCHDOG_EXIT", shell.toUpperCase(Locale.ENGLISH)));
             }
 
             postCallback(command, exitCode, bufferSTDOUT, bufferSTDERR, null);
@@ -1533,9 +1702,10 @@ public class Shell {
             // must always be called from a synchronized method
 
             boolean running = isRunning();
-            if (!running)
+            if (!running || closed) {
                 idle = true;
                 opening = false;
+            }
 
             if (running && !closed && idle && (commands.size() > 0)) {
                 Command command = commands.get(0);
@@ -1578,7 +1748,7 @@ public class Shell {
                             startWatchdog();
                         }
                         for (String write : command.commands) {
-                            Debug.logCommand(String.format("[%s+] %s",
+                            Debug.logCommand(String.format(Locale.ENGLISH, "[%s+] %s",
                                     shell.toUpperCase(Locale.ENGLISH), write));
                             STDIN.write((write + "\n").getBytes("UTF-8"));
                         }
@@ -1597,7 +1767,7 @@ public class Shell {
                 }
             } else if (!running || closed) {
                 // our shell died for unknown reasons or was closed - abort all submissions
-                Debug.log(String.format("[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
+                Debug.log(String.format(Locale.ENGLISH, "[%s%%] SHELL_DIED", shell.toUpperCase(Locale.ENGLISH)));
                 while (commands.size() > 0) {
                     postCallback(commands.remove(0), OnResult.SHELL_DIED, null, null, null);
                 }
@@ -1606,11 +1776,20 @@ public class Shell {
 
             if (idle) {
                 if (running && doCloseWhenIdle) {
-                    close();
-                } else if (idle && notifyIdle) {
+                    doCloseWhenIdle = false;
+                    closeImmediately(true);
+                }
+                if (notifyIdle) {
                     synchronized (idleSync) {
                         idleSync.notifyAll();
                     }
+                }
+            }
+
+            if (lastOpening && !opening) {
+                lastOpening = opening;
+                synchronized (openingSync) {
+                    openingSync.notifyAll();
                 }
             }
         }
@@ -1690,7 +1869,7 @@ public class Shell {
         /**
          * Increase callback counter
          */
-        private void startCallback() {
+        void startCallback() {
             synchronized (callbackSync) {
                 callbacks++;
             }
@@ -1759,7 +1938,7 @@ public class Shell {
          * Decrease callback counter, signals callback complete state when
          * dropped to 0
          */
-        private void endCallback() {
+        void endCallback() {
             synchronized (callbackSync) {
                 callbacks--;
                 if (callbacks == 0) {
@@ -1770,12 +1949,12 @@ public class Shell {
 
         /**
          * Internal call that launches the shell, starts gobbling, and starts
-         * executing commands. See {@link Shell.Interactive}
+         * executing commands. See {@link Interactive}
          *
          * @return Opened successfully ?
          */
         private synchronized boolean open() {
-            Debug.log(String.format("[%s%%] START", shell.toUpperCase(Locale.ENGLISH)));
+            Debug.log(String.format(Locale.ENGLISH, "[%s%%] START", shell.toUpperCase(Locale.ENGLISH)));
 
             try {
                 // setup our process, retrieve STDIN stream, and STDOUT/STDERR
@@ -1799,18 +1978,33 @@ public class Shell {
                     @Override
                     public void onStreamClosed() {
                         if (shellDiesOnSTDOUTERRClose || !isRunning()) {
-                            synchronized (Interactive.this) {
-                                // our shell died for unknown reasons - abort all submissions
-                                if (command != null) {
-                                    if (command.markerInputStream != null) {
-                                        command.markerInputStream.setEOF();
-                                    }
-                                    postCallback(command, OnResult.SHELL_DIED, null, null, null);
-                                    command = null;
+                            if (Thread.currentThread() == STDOUT) STDERR.resumeGobbling();
+                            if (Thread.currentThread() == STDERR) STDOUT.resumeGobbling();
+
+                            boolean isLast;
+                            synchronized (STDclosedSync){
+                                if (Thread.currentThread() == STDOUT) STDOUTclosed = true;
+                                if (Thread.currentThread() == STDERR) STDERRclosed = true;
+                                isLast = STDOUTclosed && STDERRclosed;
+
+                                if ((command != null) && (command.markerInputStream != null)) {
+                                    command.markerInputStream.setEOF();
                                 }
-                                closed = true;
-                                opening = false;
-                                runNextCommand();
+                            }
+
+                            if (isLast) { // make sure both are done
+                                waitForCallbacks();
+
+                                synchronized (Interactive.this) {
+                                    // our shell died for unknown reasons - abort all submissions
+                                    if (command != null) {
+                                        postCallback(command, OnResult.SHELL_DIED, bufferSTDOUT, bufferSTDERR, null);
+                                        command = null;
+                                    }
+                                    closed = true;
+                                    opening = false;
+                                    runNextCommand();
+                                }
                             }
                         }
                     }
@@ -1917,10 +2111,20 @@ public class Shell {
         }
 
         /**
-         * Currently unused
+         * Currently unused. May be called multiple times for each actual close.
          */
-        private void onClosed() {
-            // callbacks may still be scheduled/running at this point
+        protected void onClosed() {
+            // callbacks may still be scheduled/running at this point, and this may be called
+            // multiple times!
+        }
+
+        /**
+         * Currently redirects to {@link #closeImmediately()}. You should use
+         * {@link #closeImmediately()} or {@link #closeWhenIdle()} directly instead
+         */
+        // not annotated @deprecated because we do want to use this method in Threaded
+        public void close() {
+            closeImmediately();
         }
 
         /**
@@ -1930,7 +2134,11 @@ public class Shell {
          * block for a long time. This method will intentionally crash your app
          * (if in debug mode) if you try to do this anyway.
          */
-        public void close() {
+        public void closeImmediately() {
+            closeImmediately(false);
+        }
+
+        protected void closeImmediately(boolean fromIdle) {
             boolean _idle = isIdle(); // idle must be checked synchronized
 
             synchronized (this) {
@@ -1938,6 +2146,11 @@ public class Shell {
                     return;
                 running = false;
                 closed = true;
+            }
+
+            if (!isRunning()) {
+                onClosed();
+                return;
             }
 
             // This method should not be called from the main thread unless the
@@ -1979,11 +2192,16 @@ public class Shell {
                     // STDIN going missing is no reason to abort 
                 }
 
-                // if we're called from the OnShellOpenResult callback wrapper, we would deadlock
+                // Make sure our threads our running
+                if (Thread.currentThread() != STDOUT) STDOUT.resumeGobbling();
+                if (Thread.currentThread() != STDERR) STDERR.resumeGobbling();
+
+                // Otherwise we may deadlock waiting on eachother, happens when this is run from OnShellOpenResultListener
                 if ((Thread.currentThread() != STDOUT) && (Thread.currentThread() != STDERR)) {
                     STDOUT.join();
                     STDERR.join();
                 }
+
                 stopWatchdog();
                 process.destroy();
             } catch (IOException e) {
@@ -1992,15 +2210,21 @@ public class Shell {
                 // this should really be re-thrown
             }
 
-            Debug.log(String.format("[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
+            Debug.log(String.format(Locale.ENGLISH, "[%s%%] END", shell.toUpperCase(Locale.ENGLISH)));
 
             onClosed();
         }
 
-        public synchronized void closeWhenIdle() {
-            doCloseWhenIdle = true;
+        /**
+         * {@link #close()} the shell when it becomes idle. Note that in contrast to
+         * {@link #closeImmediately()}, this method does <i>not</i> block until the
+         * shell is closed!
+         */
+        public void closeWhenIdle() {
             if (idle) {
-                close();
+                closeImmediately(true);
+            } else {
+                doCloseWhenIdle = true;
             }
         }
 
@@ -2029,12 +2253,24 @@ public class Shell {
             synchronized (idleSync) {
                 idleSync.notifyAll();
             }
+            if (lastOpening && !opening) {
+                lastOpening = opening;
+                synchronized (openingSync) {
+                    openingSync.notifyAll();
+                }
+            }
 
             onClosed();
         }
 
         /**
+         * <p>
          * Is our shell currently being opened ?
+         * </p>
+         * <p>
+         * Requires OnShellOpenResultCallback to be used when opening, or
+         * {@link Builder#setDetectOpen(boolean)} to be true
+         * </p>
          *
          * @return Shell opening ?
          */
@@ -2072,8 +2308,38 @@ public class Shell {
                 synchronized (idleSync) {
                     idleSync.notifyAll();
                 }
+                if (lastOpening && !opening) {
+                    lastOpening = opening;
+                    synchronized (openingSync) {
+                        openingSync.notifyAll();
+                    }
+                }
             }
             return idle;
+        }
+
+        private boolean waitForCallbacks() {
+            if ((handler != null) &&
+                    (handler.getLooper() != null) &&
+                    (handler.getLooper() != Looper.myLooper())) {
+                // If the callbacks are posted to a different thread than
+                // this one, we can wait until all callbacks have called
+                // before returning. If we don't use a Handler at all, the
+                // callbacks are already called before we get here. If we do
+                // use a Handler but we use the same Looper, waiting here
+                // would actually block the callbacks from being called
+
+                synchronized (callbackSync) {
+                    while (callbacks > 0) {
+                        try {
+                            callbackSync.wait();
+                        } catch (InterruptedException e) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
         }
 
         /**
@@ -2102,7 +2368,7 @@ public class Shell {
          * on this behavior, you should make certain this is indeed the case.
          * </p>
          * <p>
-         * See {@link Shell.Interactive} for further details on threading and
+         * See {@link Interactive} for further details on threading and
          * handlers
          * </p>
          *
@@ -2125,29 +2391,45 @@ public class Shell {
                     }
                 }
 
-                if ((handler != null) &&
-                        (handler.getLooper() != null) &&
-                        (handler.getLooper() != Looper.myLooper())) {
-                    // If the callbacks are posted to a different thread than
-                    // this one, we can wait until all callbacks have called
-                    // before returning. If we don't use a Handler at all, the
-                    // callbacks are already called before we get here. If we do
-                    // use a Handler but we use the same Looper, waiting here
-                    // would actually block the callbacks from being called
+                return waitForCallbacks();
+            }
 
-                    synchronized (callbackSync) {
-                        while (callbacks > 0) {
-                            try {
-                                callbackSync.wait();
-                            } catch (InterruptedException e) {
-                                return false;
+            return true;
+        }
+
+        /**
+         * <p>
+         * Wait for shell opening to complete
+         * </p>
+         * <p>
+         * Requires OnShellOpenResultCallback to be used when opening, or
+         * {@link Builder#setDetectOpen(boolean)} to be true
+         * </p>
+         *
+         * @param defaultIfInterrupted What to return if an interrupt occurs, null to keep waiting
+         * @return If shell was opened successfully
+         */
+        public boolean waitForOpened(Boolean defaultIfInterrupted) {
+            if (Debug.getSanityChecksEnabledEffective() && Debug.onMainThread()) {
+                Debug.log(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
+                throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
+            }
+
+            if (isRunning()) {
+                synchronized (openingSync) {
+                    while (opening) {
+                        try {
+                            openingSync.wait();
+                        } catch (InterruptedException e) {
+                            if (defaultIfInterrupted != null) {
+                                return defaultIfInterrupted;
                             }
                         }
                     }
                 }
             }
 
-            return true;
+            return isRunning();
         }
 
         /**
@@ -2158,5 +2440,907 @@ public class Shell {
         public boolean hasHandler() {
             return (handler != null);
         }
+
+        /**
+         * Are there any commands scheduled ?
+         *
+         * @return Commands scheduled ?
+         */
+        public boolean hasCommands() {
+            return (commands.size() > 0);
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands) throws ShellDiedException {
+            return run(commands, null, null, false);
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands, final List<String> STDOUT, final List<String> STDERR, boolean clear) throws ShellDiedException {
+            if (clear) {
+                if (STDOUT != null) STDOUT.clear();
+                if (STDERR != null) STDERR.clear();
+            }
+            final int[] exitCode = new int[1];
+            addCommand(commands, 0, new OnCommandResultListener2() {
+                @Override
+                public void onCommandResult(int commandCode, int intExitCode, List<String> intSTDOUT, List<String> intSTDERR) {
+                    exitCode[0] = intExitCode;
+                    if (STDOUT != null) STDOUT.addAll(intSTDOUT);
+                    if (STDERR != null) STDERR.addAll(intSTDERR);
+                }
+            });
+            waitForIdle();
+            if (exitCode[0] < 0) throw new ShellDiedException();
+            return exitCode[0];
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands, final OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException {
+            final int[] exitCode = new int[1];
+            addCommand(commands, 0, new OnCommandLineListener() {
+                @Override
+                public void onSTDERR(String line) {
+                    onSyncCommandLineListener.onSTDERR(line);
+                }
+
+                @Override
+                public void onSTDOUT(String line) {
+                    onSyncCommandLineListener.onSTDOUT(line);
+                }
+
+                @Override
+                public void onCommandResult(int commandCode, int intExitCode) {
+                    exitCode[0] = intExitCode;
+                }
+            });
+            waitForIdle();
+            if (exitCode[0] < 0) throw new ShellDiedException();
+            return exitCode[0];
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands, final OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException {
+            final int[] exitCode = new int[1];
+            addCommand(commands, 0, new OnCommandInputStreamListener() {
+                @Override
+                public void onSTDERR(String line) {
+                    onSyncCommandInputStreamListener.onSTDERR(line);
+                }
+
+                @Override
+                public void onInputStream(InputStream inputStream) {
+                    onSyncCommandInputStreamListener.onInputStream(inputStream);
+                }
+
+                @Override
+                public void onCommandResult(int commandCode, int intExitCode) {
+                    exitCode[0] = intExitCode;
+                }
+            });
+            waitForIdle();
+            if (exitCode[0] < 0) throw new ShellDiedException();
+            return exitCode[0];
+        }
+    }
+
+    /**
+     * <p>
+     * Variant of {@link Interactive} that uses a dedicated background thread for callbacks,
+     * rather than requiring the library users to manage this themselves. It also provides
+     * support for pooling, and is used by {@link Pool}
+     * </p>
+     * <p>
+     * While {@link Interactive}'s asynchronous calls are relatively easy to use from the
+     * main UI thread, many developers struggle with implementing it correctly in background
+     * threads. This class is a one-stop solution for those issues
+     * </p>
+     * <p>
+     * You can use this class from the main UI thread as well, though you should take note
+     * that since the callbacks are run in a background thread, you cannot manipulate the
+     * UI directly. You can use the Activity#runOnUiThread() to work around this
+     * </p>
+     * <p>
+     * Please note that the {@link #close()} method behaves differently from the implementation
+     * in {@link Interactive}!
+     * </p>
+     *
+     * @see Interactive
+     */
+    public static class Threaded extends Interactive {
+        private static int threadCounter = 0;
+        private static int incThreadCounter() {
+            synchronized (Threaded.class) {
+                int ret = threadCounter;
+                threadCounter++;
+                return ret;
+            }
+        }
+
+        private final HandlerThread handlerThread;
+        private final boolean pooled;
+        private final Object onCloseCalledSync = new Object();
+        private volatile boolean onClosedCalled = false;
+        private final Object onPoolRemoveCalledSync = new Object();
+        private volatile boolean onPoolRemoveCalled = false;
+        private volatile boolean reserved = true;
+        private volatile boolean closeEvenIfPooled = false;
+
+        private static Handler createHandlerThread() {
+            // to work-around having to call super() as first line in constructor, but still
+            // being able to keep fields final
+            HandlerThread handlerThread = new HandlerThread("Shell.Threaded#" + String.valueOf(incThreadCounter()));
+            handlerThread.start();
+            return new Handler(handlerThread.getLooper());
+        }
+
+        protected Threaded(Builder builder, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
+            super(builder.setHandler(createHandlerThread()).
+                    setDetectOpen(true).
+                    setShellDiesOnSTDOUTERRClose(true),
+                    onShellOpenResultListener);
+
+            // don't try this at home
+            handlerThread = (HandlerThread)handler.getLooper().getThread();
+
+            // its ok if close is called before this
+            this.pooled = pooled;
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            if (pooled) closed = true; // prevent ShellNotClosedException exception on pool
+            super.finalize();
+        }
+
+        /**
+         * <p>
+         * Redirects to non-blocking {@link #closeWhenIdle()} if this instance is not part of a
+         * pool; if it is, returns the instance to the pool
+         * </p>
+         * <p>
+         * Note that this behavior is different from the superclass' behavior, which redirects
+         * to the blocking {@link #closeImmediately()}
+         * </p>
+         * <p>
+         * This change in behavior between super- and subclass is a clear code smell, but it is
+         * needed to support AutoCloseable, makes the flow with {@link Pool} better, and maintains
+         * compatibility with older code using this library (which there is quite a bit of)
+         * </p>
+         */
+        @Override
+        public void close() {
+            // NOT close, but closeWhenIdle, note!
+            if (pooled) {
+                super.closeWhenIdle();
+            } else {
+                closeWhenIdle();
+            }
+        }
+
+        @Override
+        protected void closeImmediately(boolean fromIdle) {
+            if (pooled) {
+                if (fromIdle) {
+                    synchronized (onPoolRemoveCalledSync) {
+                        if (!onPoolRemoveCalled) {
+                            Pool.releaseReservation(this);
+                        }
+                        if (closeEvenIfPooled) {
+                            super.closeImmediately(true);
+                        }
+                    }
+                } else {
+                    synchronized (onPoolRemoveCalledSync) {
+                        if (!onPoolRemoveCalled) {
+                            onPoolRemoveCalled = true;
+                            Pool.removeShell(this);
+                        }
+                    }
+                    super.closeImmediately(false);
+                }
+            } else {
+                super.closeImmediately(fromIdle);
+            }
+        }
+
+        private void closeWhenIdle(boolean fromPool) {
+            if (pooled) {
+                synchronized (onPoolRemoveCalledSync) {
+                    if (!onPoolRemoveCalled) {
+                        onPoolRemoveCalled = true;
+                        Pool.removeShell(this);
+                    }
+                }
+                if (fromPool) {
+                    closeEvenIfPooled = true;
+                }
+            }
+            super.closeWhenIdle();
+        }
+
+        @Override
+        public void closeWhenIdle() {
+            closeWhenIdle(false);
+        }
+
+        synchronized boolean wasPoolRemoveCalled() {
+            return onPoolRemoveCalled;
+        }
+
+        @Override
+        protected void onClosed() {
+            // clean up our thread
+
+            if (pooled) {
+                synchronized (onPoolRemoveCalledSync) {
+                    if (!onPoolRemoveCalled) {
+                        onPoolRemoveCalled = true;
+                        Pool.removeShell(this);
+                    }
+                }
+            }
+
+            synchronized (onCloseCalledSync) {
+                if (onClosedCalled) return;
+                onClosedCalled = true;
+            }
+
+            super.onClosed();
+
+            if (!handlerThread.isAlive()) return;
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (callbackSync) {
+                        if (callbacks > 0) {
+                            // we still have some callbacks running
+                            handler.postDelayed(this, 1000);
+                        } else {
+                            if (Build.VERSION.SDK_INT >= 18) {
+                                handlerThread.quitSafely();
+                            } else {
+                                handlerThread.quit();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * <p>
+         * Cast current instance to {@link ThreadedAutoCloseable} which can be used with
+         * try-with-resources
+         * </p>
+         * <p>
+         * On API &gt;= 19, all instances are safe to cast this way, as all instances are
+         * created as {@link ThreadedAutoCloseable}. On older API levels, this returns null
+         * </p>
+         *
+         * @return ThreadedAutoCloseable on API &gt;= 19, null otherwise
+         */
+        public ThreadedAutoCloseable ac() {
+            if (this instanceof ThreadedAutoCloseable) {
+                return (ThreadedAutoCloseable)this;
+            } else {
+                return null;
+            }
+        }
+
+        private boolean isReserved() {
+            return reserved;
+        }
+
+        private void setReserved(boolean reserved) {
+            this.reserved = reserved;
+        }
+    }
+
+    /**
+     * <p>
+     * AutoClosable variant of {@link Threaded} that can be used with try-with-resources
+     * </p>
+     * <p>
+     * This class is automatically used instead of {@link Threaded} everywhere on
+     * API &gt;= 19. Use {@link Threaded#ac()} to auto-cast (returns null on API &lt;= 19)
+     * </p>
+     */
+    @TargetApi(Build.VERSION_CODES.KITKAT)
+    public static class ThreadedAutoCloseable extends Threaded implements AutoCloseable {
+        protected ThreadedAutoCloseable(Builder builder, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
+            super(builder, onShellOpenResultListener, pooled);
+        }
+    }
+
+    /**
+     * <p>
+     * Helper class for pooled command execution
+     * </p>
+     * <p>
+     * {@link Interactive} and {@link Threaded}'s run() methods operate on a specific
+     * shell instance. This class supports the same synchronous methods, but runs them
+     * on any available shell instance from the pool, creating a new instance when none
+     * is available.
+     * </p>
+     * <p>
+     * {@link Pool#SH} and {@link Pool#SH} are instances of this class, you can create
+     * a wrapper for other shell commands using {@link Pool#getWrapper(String)}
+     * </p>
+     *
+     * @see Pool
+     */
+    public static class PoolWrapper implements DeprecatedSyncCommands, SyncCommands {
+        private final String shellCommand;
+
+        /**
+         * Constructor for {@link PoolWrapper}
+         *
+         * @param shell Shell command, like "sh" or "su"
+         */
+        public PoolWrapper(String shell) {
+            this.shellCommand = shell;
+        }
+
+        /**
+         * <p>
+         * Retrieves a {@link Threaded} instance from the {@link Pool}, creating a new one
+         * if none are available. You <i>must</i> call {@link Threaded#close()} to return
+         * the instance to the {@link Pool}
+         * </p>
+         * <p>
+         * If called from a background thread, the shell is fully opened before this method
+         * returns. If called from the main UI thread, the shell may not have completed
+         * opening.
+         * </p>
+         *
+         * @return A {@link Threaded} instance from the {@link Pool}
+         * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
+         */
+        public Threaded get() throws ShellDiedException {
+            return Shell.Pool.get(shellCommand);
+        }
+
+        /**
+         * <p>
+         * Retrieves a {@link Threaded} instance from the {@link Pool}, creating a new one
+         * if none are available. You <i>must</i> call {@link Threaded#close()} to return
+         * the instance to the {@link Pool}
+         * </p>
+         * <p>
+         * The callback with open status is called before this method returns if this method
+         * is called from a background thread. When called from the main UI thread, the
+         * method may return before the callback is executed (or the shell has completed opening)
+         * </p>
+         *
+         * @param onShellOpenResultListener Callback to return shell open status
+         * @return A {@link Threaded} instance from the {@link Pool}
+         * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
+         */
+        public Threaded get(OnShellOpenResultListener onShellOpenResultListener) throws ShellDiedException {
+            return Shell.Pool.get(shellCommand, onShellOpenResultListener);
+        }
+
+        /**
+         * <p>
+         * Retrieves a new {@link Threaded} instance that is not part of the {@link Pool}
+         * </p>
+         *
+         * @return A {@link Threaded} instance
+         */
+        public Threaded getUnpooled() {
+            return Shell.Pool.getUnpooled(shellCommand);
+        }
+
+        /**
+         * <p>
+         * Retrieves a new {@link Threaded} instance that is not part of the {@link Pool}
+         * </p>
+         *
+         * @param onShellOpenResultListener Callback to return shell open status
+         * @return A {@link Threaded} instance
+         */
+        public Threaded getUnpooled(OnShellOpenResultListener onShellOpenResultListener) {
+            return Shell.Pool.getUnpooled(shellCommand, onShellOpenResultListener);
+        }
+
+        // documented in DeprecatedSyncCommands interface
+        @Deprecated
+        public List<String> run(Object commands, final boolean wantSTDERR) {
+            try {
+                Threaded shell = get();
+                try {
+                    final int[] exitCode = new int[1];
+                    final List<String> output = new ArrayList<String>();
+                    shell.addCommand(commands, 0, new OnCommandResultListener2() {
+                        @Override
+                        public void onCommandResult(int commandCode, int intExitCode, List<String> intSTDOUT, List<String> intSTDERR) {
+                            exitCode[0] = intExitCode;
+                            output.addAll(intSTDOUT);
+                            if (wantSTDERR) {
+                                output.addAll(intSTDERR);
+                            }
+                        }
+                    });
+                    shell.waitForIdle();
+                    if (exitCode[0] < 0) return null;
+                    return output;
+                } finally {
+                    shell.close();
+                }
+            } catch (ShellDiedException e) {
+                return null;
+            }
+        }
+
+        // documented in DeprecatedSyncCommands interface
+        @SuppressWarnings("unchecked") // if the user passes in List<> of anything other than String, that's on them
+        @Deprecated
+        public List<String> run(Object commands, String[] environment, boolean wantSTDERR) {
+            if (environment == null) {
+                return run(commands, wantSTDERR);
+            } else {
+                String[] _commands;
+                if (commands instanceof String) {
+                    _commands = new String[] { (String)commands };
+                } else if (commands instanceof List<?>) {
+                    _commands = ((List<String>)commands).toArray(new String[0]);
+                } else if (commands instanceof String[]) {
+                    _commands = (String[])commands;
+                } else {
+                    throw new IllegalArgumentException("commands parameter must be of type String, List<String> or String[]");
+                }
+
+                StringBuilder sb = new StringBuilder();
+                for (String entry : environment) {
+                    int split;
+                    if ((split = entry.indexOf("=")) >= 0) {
+                        boolean quoted = entry.substring(split + 1, split + 2).equals("\"");
+                        sb.append(entry, 0, split);
+                        sb.append(quoted ? "=" : "=\"");
+                        sb.append(entry.substring(split + 1));
+                        sb.append(quoted ? " " : "\" ");
+                    }
+                }
+                sb.append("sh -c \"\n");
+                for (String line : _commands) {
+                    sb.append(line);
+                    sb.append("\n");
+                }
+                sb.append("\"");
+                return run(new String[] { sb.toString().
+                        replace("\\", "\\\\").
+                        replace("$", "\\$")
+                }, wantSTDERR);
+            }
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands) throws ShellDiedException {
+            return run(commands, null, null, false);
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands, List<String> STDOUT, List<String> STDERR, boolean clear) throws ShellDiedException {
+            Threaded shell = get();
+            try {
+                return shell.run(commands, STDOUT, STDERR, clear);
+            } finally {
+                shell.close();
+            }
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands, OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException {
+            Threaded shell = get();
+            try {
+                return shell.run(commands, onSyncCommandLineListener);
+            } finally {
+                shell.close();
+            }
+        }
+
+        // documented in SyncCommands interface
+        @Override
+        public int run(Object commands, OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException {
+            Threaded shell = get();
+            try {
+                return shell.run(commands, onSyncCommandInputStreamListener);
+            } finally {
+                shell.close();
+            }
+        }
+    }
+
+    /**
+     * <p>
+     * Class that manages {@link Threaded} shell pools. When one of its (or {@link PoolWrapper}'s)
+     * get() methods is used, a shell is retrieved from the pool, or a new one is created if none
+     * are available. You <i>must</i> call {@link Threaded#close()} to return a shell to the pool
+     * for reuse
+     * </p>
+     * <p>
+     * While as many shells are created on-demand as necessary {@link #setPoolSize(int)} governs
+     * how many open shells are kept around in the pool once they become idle. Note that this only
+     * applies to "su"-based (root) shells, there is at most one instance of other shells
+     * (such as "sh") kept around, based on the assumption that starting those is cheap, while
+     * starting a "su"-based shell is expensive (and may interrupt the user with a permission
+     * dialog)
+     * </p>
+     * <p>
+     * If you want to change the default settings the {@link Threaded} shells are created with,
+     * call {@link #setOnNewBuilderListener(OnNewBuilderListener)}. It is advised to this only
+     * once, from Application::onCreate(). If you change this after shells have been created,
+     * you may end up with some shells have the default settings, and others having your
+     * customized ones
+     * </p>
+     * <p>
+     * For convenience, getUnpooled() methods are also provided, creating new {@link Threaded}
+     * shells you can manage on your own, but using the same {@link Builder} settings as
+     * configured for the pool
+     * </p>
+     * <p>
+     * {@link PoolWrapper} instances are setup for you already as {@link Shell.SH} and
+     * {@link Shell.SU}, allowing you to call Shell.SH/SU.run(...) without further management
+     * requirements. These methods retrieve an idle shell from the pool, run the passed
+     * commands in synchronous fashion (throwing {@link ShellDiedException} on any issue),
+     * and return the used shell to pool. Though their signatures are (intentionally) the
+     * same as the run(...) methods from the {@link Threaded} class (and indeed those are
+     * used internally), they should not be confused: the ones in the {@link Threaded} class
+     * operate specifically on that {@link Threaded} instance, that you should have get(...)
+     * before and will close() afterwards, while the {@link PoolWrapper} methods handle the
+     * pooling for you
+     * </p>
+     * <p>
+     * Should you need to pool shells that aren't "sh" or "su", a {@link PoolWrapper} instance
+     * can be created for these with {@link #getWrapper(String)}
+     * </p>
+     *
+     */
+    public static class Pool {
+        /**
+         * Callback interface to create a {@link Builder} for new shell instances
+         */
+        public interface OnNewBuilderListener {
+            /**
+             * Called when a new {@link Builder} needs to be instantiated
+             *
+             * @return New {@link Builder} instance
+             */
+            Shell.Builder newBuilder();
+        }
+
+        /**
+         * Default {@link OnNewBuilderListener} interface
+         *
+         * @see #setOnNewBuilderListener(OnNewBuilderListener)
+         */
+        public static final OnNewBuilderListener defaultOnNewBuilderListener = new OnNewBuilderListener() {
+            @SuppressWarnings("deprecation")
+            @Override
+            public Shell.Builder newBuilder() {
+                return (new Shell.Builder())
+                        .setWantSTDERR(true)
+                        .setWatchdogTimeout(0)
+                        .setMinimalLogging(false);
+            }
+        };
+
+        private static OnNewBuilderListener onNewBuilderListener = null;
+        private static Map<String, ArrayList<Threaded>> pool = new HashMap<String, ArrayList<Threaded>>();
+        private static int poolSize = 4; // only applicable to su, we keep only 1 of others
+
+        /**
+         * Get the currently set {@link OnNewBuilderListener} callback. {@link #defaultOnNewBuilderListener}
+         * is used when null
+         *
+         * @return Current {@link OnNewBuilderListener} interface, or null for {@link #defaultOnNewBuilderListener}
+         */
+        public static synchronized OnNewBuilderListener getOnNewBuilderListener() {
+            return onNewBuilderListener;
+        }
+
+        /**
+         * Set current {@link OnNewBuilderListener} callback
+         *
+         * @param onNewBuilderListener {@link OnNewBuilderListener} to use, or null to revert to {@link #defaultOnNewBuilderListener}
+         */
+        public static synchronized void setOnNewBuilderListener(OnNewBuilderListener onNewBuilderListener) {
+            Pool.onNewBuilderListener = onNewBuilderListener;
+        }
+
+        /**
+         * <p>
+         * Retrieve current kept pool size for "su"-based (root) shells. Only one instance of
+         * non-root shells is kept around long-term
+         * </p>
+         * <p>
+         * Note that more shells may be created as needed, this number only indicates how many
+         * idle instances to keep around for later use
+         * </p>
+         *
+         * @return Current pool size
+         */
+        public synchronized static int getPoolSize() {
+            return poolSize;
+        }
+
+        /**
+         * <p>
+         * Set current kept pool size for "su"-based (root) shells. Only one instance of
+         * non-root shells is kept around long-term
+         * </p>
+         * <p>
+         * Note that more shells may be created as needed, this number only indicates how many
+         * idle instances to keep around for later use
+         * </p>
+         *
+         * @param poolSize Pool size to use
+         */
+        public synchronized static void setPoolSize(int poolSize) {
+            poolSize = Math.max(poolSize, 1);
+            if (poolSize != Pool.poolSize) {
+                Pool.poolSize = poolSize;
+                cleanup(null, false);
+            }
+        }
+
+        private static Shell.Builder newBuilder() {
+            synchronized (Pool.class) {
+                if (onNewBuilderListener != null) {
+                    return onNewBuilderListener.newBuilder();
+                } else {
+                    return defaultOnNewBuilderListener.newBuilder();
+                }
+            }
+        }
+
+        /**
+         * Retrieves a new {@link Threaded} instance that is not part of the {@link Pool}
+         *
+         * @param shell Shell command
+         * @return A {@link Threaded}
+         */
+        public static Threaded getUnpooled(String shell) {
+            return getUnpooled(shell, null);
+        }
+
+        /**
+         * <p>
+         * Retrieves a new {@link Threaded} instance that is not part of the {@link Pool},
+         * with open result callback
+         * </p>
+         *
+         * @param shell Shell command
+         * @param onShellOpenResultListener Callback to return shell open status
+         * @return A {@link Threaded}
+         */
+        public static Threaded getUnpooled(String shell, OnShellOpenResultListener onShellOpenResultListener) {
+            return newInstance(shell, null, false);
+        }
+
+        private static Threaded newInstance(String shell, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
+            Debug.logPool(String.format(Locale.ENGLISH, "newInstance(shell:%s, pooled:%d)", shell, pooled ? 1 : 0));
+            return newBuilder().setShell(shell).openThreadedEx(onShellOpenResultListener, pooled);
+        }
+
+        /**
+         * Cleanup cycle for pooled shells
+         *
+         * @param toRemove Shell to remove, should already be closed, or null
+         * @param removeAll Remove all shells, closing them
+         */
+        private static void cleanup(Threaded toRemove, boolean removeAll) {
+            for (String key : pool.keySet().toArray(new String[0])) {
+                ArrayList<Threaded> shells = pool.get(key);
+
+                int wantedTotal = Shell.SU.isSU(key) ? poolSize : 1;
+                int haveTotal = 0;
+                int haveAvailable = 0;
+
+                for (int i = shells.size() - 1; i >= 0; i--) {
+                    Threaded threaded = shells.get(i);
+                    if (!threaded.isRunning() || (threaded == toRemove) || removeAll) {
+                        if (removeAll) threaded.closeWhenIdle();
+                        Debug.logPool("shell removed");
+                        shells.remove(i);
+                    } else {
+                        haveTotal += 1;
+                        if (!threaded.isReserved()) {
+                            haveAvailable++;
+                        }
+                    }
+                }
+
+                if ((haveTotal > wantedTotal) && (haveAvailable > 1)) {
+                    int kill = Math.min(haveAvailable - 1, haveTotal - wantedTotal);
+                    for (int i = shells.size() - 1; i >= 0; i--) {
+                        Threaded threaded = shells.get(i);
+                        if (!threaded.isReserved() && threaded.isIdle()) {
+                            shells.remove(i);
+                            Debug.logPool("shell killed");
+                            // not calling closeImmediately() due to possible race
+                            threaded.closeWhenIdle(true);
+                            kill--;
+                            if (kill == 0)
+                                break;
+                        }
+                    }
+                }
+
+                if (shells.size() == 0) {
+                    pool.remove(key);
+                }
+            }
+
+            if (Debug.getDebug()) {
+                for (String key : pool.keySet()) {
+                    int reserved = 0;
+                    ArrayList<Threaded> shells = pool.get(key);
+                    for (int i = 0; i < shells.size(); i++) {
+                        if (shells.get(i).isReserved()) reserved++;
+                    }
+                    Debug.logPool(String.format(Locale.ENGLISH, "cleanup: shell:%s count:%d reserved:%d", key, shells.size(), reserved));
+                }
+            }
+        }
+
+        /**
+         * <p>
+         * Retrieves a {@link Threaded} instance from the {@link Pool}, creating a new one
+         * if none are available. You <i>must</i> call {@link Threaded#close()} to return
+         * the instance to the {@link Pool}
+         * </p>
+         * <p>
+         * If called from a background thread, the shell is fully opened before this method
+         * returns. If called from the main UI thread, the shell may not have completed
+         * opening.
+         * </p>
+         *
+         * @param shell Shell command
+         * @return A {@link Threaded}
+         * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
+         */
+        public static Threaded get(String shell) throws ShellDiedException {
+            return get(shell, null);
+        }
+
+        /**
+         * <p>
+         * Retrieves a {@link Threaded} instance from the {@link Pool}, creating a new one
+         * if none are available. You <i>must</i> call {@link Threaded#close()} to return
+         * the instance to the {@link Pool}
+         * </p>
+         * <p>
+         * The callback with open status is called before this method returns if this method
+         * is called from a background thread. When called from the main UI thread, the
+         * method may return before the callback is executed (or the shell has completed opening)
+         * </p>
+         *
+         * @param shell Shell command
+         * @param onShellOpenResultListener Callback to return shell open status
+         * @return A {@link Threaded} instance from the {@link Pool}
+         * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
+         */
+        public static Threaded get(String shell, final OnShellOpenResultListener onShellOpenResultListener) throws ShellDiedException {
+            Threaded threaded = null;
+            String shellUpper = shell.toUpperCase(Locale.ENGLISH);
+
+            synchronized (Pool.class) {
+                cleanup(null, false);
+
+                // find instance
+                ArrayList<Threaded> shells = pool.get(shellUpper);
+                if (shells != null) {
+                    for (Threaded instance : shells) {
+                        if (!instance.isReserved()) {
+                            threaded = instance;
+                            threaded.setReserved(true);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (threaded == null) {
+                // create instance
+                threaded = newInstance(shell, onShellOpenResultListener, true);
+                if (!threaded.isRunning()) {
+                    throw new ShellDiedException();
+                } else {
+                    if (!(Debug.getSanityChecksEnabledEffective() && Debug.onMainThread())) {
+                        if (!threaded.waitForOpened(null)) {
+                            throw new ShellDiedException();
+                        }
+                    }
+                    // otherwise failure will be in callbacks
+                }
+                synchronized (Pool.class) {
+                    if (!threaded.wasPoolRemoveCalled()) {
+                        if (pool.get(shellUpper) == null) {
+                            pool.put(shellUpper, new ArrayList<Threaded>());
+                        }
+                        pool.get(shellUpper).add(threaded);
+                    }
+                }
+            } else {
+                // shell is already open, but if an OnShellOpenResultListener was passed, call it
+                if (onShellOpenResultListener != null) {
+                    final Threaded fThreaded = threaded;
+                    threaded.startCallback();
+                    threaded.handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                onShellOpenResultListener.onOpenResult(true, OnShellOpenResultListener.SHELL_RUNNING);
+                            } finally {
+                                fThreaded.endCallback();
+                            }
+                        }
+                    });
+                }
+            }
+
+            return threaded;
+        }
+
+        /**
+         * @param threaded Shell to return to pool
+         */
+        private static void releaseReservation(Threaded threaded) {
+            Debug.logPool("releaseReservation");
+            threaded.setReserved(false);
+            cleanup(null, false);
+        }
+
+        /**
+         * @param threaded This shell is dead
+         */
+        private static synchronized void removeShell(Threaded threaded) {
+            Debug.logPool("removeShell");
+            cleanup(threaded, false);
+        }
+
+        /**
+         * Close (as soon as they become idle) all pooled {@link Threaded} shells
+         */
+        public static synchronized void closeAll() {
+            cleanup(null, true);
+        }
+
+        /**
+         * Create a {@link PoolWrapper} for the given shell command. A returned shell is
+         * automatically pooled. If the command is based on "su", {@link #getPoolSize()}
+         * applies, if not, only a single instance is kept
+         *
+         * @param shell Shell command, like "sh" or "su"
+         * @return {@link PoolWrapper} for this shell command
+         */
+        public static PoolWrapper getWrapper(String shell) {
+            if (shell.toUpperCase(Locale.ENGLISH).equals("SH") && (SH != null)) {
+                return SH;
+            } else if (shell.toUpperCase(Locale.ENGLISH).equals("SU") && (SU != null)) {
+                return SU;
+            } else {
+                return new PoolWrapper(shell);
+            }
+        }
+
+        /**
+         * {@link PoolWrapper} for the "sh" shell
+         */
+        public static final PoolWrapper SH = getWrapper("sh");
+
+        /**
+         * {@link PoolWrapper} for the "su" (root) shell
+         */
+        public static final PoolWrapper SU = getWrapper("su");
     }
 }

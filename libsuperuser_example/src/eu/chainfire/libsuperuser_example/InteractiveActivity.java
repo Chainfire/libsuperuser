@@ -20,8 +20,10 @@ package eu.chainfire.libsuperuser_example;
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.appcompat.app.AlertDialog;
 import eu.chainfire.libsuperuser.Shell;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -166,12 +168,27 @@ public class InteractiveActivity extends Activity {
 
         // mode switch button
         Button button = (Button)findViewById(R.id.switch_button);
-        button.setText(R.string.disable_interactive_mode);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(v.getContext(), MainActivity.class));
-                finish();
+                (new AlertDialog.Builder(InteractiveActivity.this)).
+                        setItems(new CharSequence[] {
+                                getString(R.string.mode_legacy),
+                                getString(R.string.mode_interactive) + " " + getString(R.string.mode_current),
+                                getString(R.string.mode_pooled)
+                        }, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                if (which == 0) {
+                                    startActivity(new Intent(InteractiveActivity.this, MainActivity.class));
+                                    finish();
+                                } else if (which == 2) {
+                                    startActivity(new Intent(InteractiveActivity.this, PooledActivity.class));
+                                    finish();
+                                }
+                            }
+                        }).
+                        show();;
             }
         });
 

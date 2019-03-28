@@ -62,6 +62,7 @@ public class Debug {
     public static final int LOG_GENERAL = 0x0001;
     public static final int LOG_COMMAND = 0x0002;
     public static final int LOG_OUTPUT = 0x0004;
+    public static final int LOG_POOL = 0x0008;
 
     public static final int LOG_NONE = 0x0000;
     public static final int LOG_ALL = 0xFFFF;
@@ -121,6 +122,15 @@ public class Debug {
      */
     public static void logOutput(String message) {
         logCommon(LOG_OUTPUT, "O", message);
+    }
+
+    /**
+     * <p>Log pool event</p>
+     *
+     * @param message The message to log
+     */
+    public static void logPool(String message) {
+        logCommon(LOG_POOL, "P", message);
     }
 
     /**

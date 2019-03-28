@@ -10,7 +10,7 @@ android {
     buildToolsVersion '28.0.3'
 
     defaultConfig {
-        minSdkVersion 14
+        minSdkVersion 19
         targetSdkVersion 26
     }
     
@@ -24,8 +24,5 @@ android {
             res.srcDirs = ['res']
             assets.srcDirs = ['assets']
         }
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_6
     }
 }

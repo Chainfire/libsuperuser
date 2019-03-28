@@ -18,8 +18,10 @@ package eu.chainfire.libsuperuser_example;
 
 import java.util.List;
 
+import androidx.appcompat.app.AlertDialog;
 import eu.chainfire.libsuperuser.Shell;
 
+import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
@@ -49,6 +51,9 @@ public class MainActivity extends Activity {
             // We're creating a progress dialog here because we want the user to wait.
             // If in your app your user can just continue on with clicking other things,
             // don't do the dialog thing.
+
+            // make sure we're using the legacy methods for this legacy activity
+            Shell.setRedirectDeprecated(false);
 
             dialog = new ProgressDialog(context);
             dialog.setTitle("Some title");
@@ -93,7 +98,7 @@ public class MainActivity extends Activity {
                     sb.append(line).append((char)10);
                 }
             }
-            ((TextView)findViewById(R.id.text)).setText(sb.toString());
+            ((TextView)((Activity)context).findViewById(R.id.text)).setText(sb.toString());
 
             setContext(null);
         }
@@ -106,12 +111,28 @@ public class MainActivity extends Activity {
 
         // mode switch button
         Button button = (Button)findViewById(R.id.switch_button);
-        button.setText(R.string.enable_interactive_mode);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(v.getContext(), InteractiveActivity.class));
-                finish();
+                (new AlertDialog.Builder(MainActivity.this)).
+                        setTitle("Some title").
+                        setItems(new CharSequence[] {
+                                getString(R.string.mode_legacy) + " " + getString(R.string.mode_current),
+                                getString(R.string.mode_interactive),
+                                getString(R.string.mode_pooled)
+                        }, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                if (which == 1) {
+                                    startActivity(new Intent(MainActivity.this, InteractiveActivity.class));
+                                    finish();
+                                } else if (which == 2) {
+                                    startActivity(new Intent(MainActivity.this, PooledActivity.class));
+                                    finish();
+                                }
+                            }
+                        }).
+                        show();
             }
         });
 

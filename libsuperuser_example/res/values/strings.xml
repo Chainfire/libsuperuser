@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">libsuperuser_example</string>
-    <string name="enable_interactive_mode">Enable Interactive Mode</string>
-    <string name="disable_interactive_mode">Disable Interactive Mode</string>
+    <string name="modes">Mode</string>
+    <string name="mode_legacy">Legacy</string>
+    <string name="mode_interactive">Interactive</string>
+    <string name="mode_pooled">Pooled</string>
+    <string name="mode_current">(current)</string>
     <string name="refresh">Refresh</string>
 </resources>
