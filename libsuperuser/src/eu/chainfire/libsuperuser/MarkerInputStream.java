@@ -102,7 +102,7 @@ public class MarkerInputStream extends InputStream {
 
         // see if we have our marker
         int match = -1;
-        for (int i = Math.max(0, bufferUsed - markerMaxLength); i < bufferUsed; i++) {
+        for (int i = Math.max(0, bufferUsed - markerMaxLength); i < bufferUsed - markerLength; i++) {
             boolean found = true;
             for (int j = 0; j < markerLength; j++) {
                 if (buffer[i + j] != marker[j]) {
