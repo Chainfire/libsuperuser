@@ -653,7 +653,7 @@ public class Shell {
     /**
      * DO NOT USE DIRECTLY. Base interface for result callbacks.
      */
-    private interface OnResult {
+    public interface OnResult {
         // for any callback
         int WATCHDOG_EXIT = -1;
         int SHELL_DIED = -2;
