@@ -20,6 +20,7 @@ package eu.chainfire.libsuperuser_example;
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import eu.chainfire.libsuperuser.Shell;
 
@@ -67,7 +68,7 @@ public class InteractiveActivity extends Activity {
     private void sendRootCommand() {
         rootSession.addCommand(new String[] { "id", "date", "ls -l /" }, 0,
                 new Shell.OnCommandResultListener() {
-            public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+            public void onCommandResult(int commandCode, int exitCode, @NonNull List<String> output) {
                 if (exitCode < 0) {
                     reportError("Error executing commands: exitCode " + exitCode);
                 } else {
@@ -91,12 +92,12 @@ public class InteractiveActivity extends Activity {
             }
 
             @Override
-            public void onSTDOUT(String line) {
+            public void onSTDOUT(@NonNull String line) {
                 appendLineToOutput(line);
             }
 
             @Override
-            public void onSTDERR(String line) {
+            public void onSTDERR(@NonNull String line) {
                 appendLineToOutput("(stderr) " + line);
             }
         });
@@ -110,12 +111,12 @@ public class InteractiveActivity extends Activity {
             }
 
             @Override
-            public void onSTDOUT(String line) {
+            public void onSTDOUT(@NonNull String line) {
                 appendLineToOutput(line);
             }
 
             @Override
-            public void onSTDERR(String line) {
+            public void onSTDERR(@NonNull String line) {
                 appendLineToOutput("(stderr) " + line);
             }
         });
@@ -188,7 +189,7 @@ public class InteractiveActivity extends Activity {
                                 }
                             }
                         }).
-                        show();;
+                        show();
             }
         });
 

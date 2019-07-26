@@ -32,6 +32,7 @@ import java.lang.ref.WeakReference;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import eu.chainfire.libsuperuser.Shell;
 
@@ -186,7 +187,7 @@ public class PooledActivity extends Activity {
                             }
                             shell.run("cat /init", new Shell.OnSyncCommandInputStreamListener() {
                                 @Override
-                                public void onInputStream(InputStream inputStream) {
+                                public void onInputStream(@NonNull InputStream inputStream) {
                                     try {
                                         MessageDigest md = MessageDigest.getInstance("MD5");
 
@@ -215,7 +216,7 @@ public class PooledActivity extends Activity {
                                 }
 
                                 @Override
-                                public void onSTDERR(String line) {
+                                public void onSTDERR(@NonNull String line) {
                                     addLine("(stderr) " + line);
                                 }
                             });

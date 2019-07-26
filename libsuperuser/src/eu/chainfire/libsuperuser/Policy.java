@@ -19,6 +19,9 @@ package eu.chainfire.libsuperuser;
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 /**
  * Helper class for modifying SELinux policies, reducing the number of calls to a minimum.
  *
@@ -54,6 +57,7 @@ public abstract class Policy {
     private static final int MAX_POLICY_LENGTH = 4096 - 32;
 
     private static final Object synchronizer = new Object();
+    @Nullable
     private static volatile Boolean canInject = null;
     private static volatile boolean injected = false;
 
@@ -79,6 +83,7 @@ public abstract class Policy {
      *
      * @return Policies to inject
      */
+    @NonNull
     protected abstract String[] getPolicies();
 
     /**
@@ -87,7 +92,7 @@ public abstract class Policy {
      *
      * @return canInject?
      */
-    @SuppressWarnings({"deprecation"})
+    @SuppressWarnings({"deprecation", "ConstantConditions"})
     public static boolean canInject() {
         synchronized (synchronizer) {
             if (canInject != null) return canInject;
@@ -126,6 +131,7 @@ public abstract class Policy {
      *
      * @return Possibly empty List of commands, or null
      */
+    @Nullable
     protected List<String> getInjectCommands() {
         return getInjectCommands(true);
     }
@@ -136,6 +142,7 @@ public abstract class Policy {
      * @param allowBlocking allow method to perform blocking I/O for extra checks
      * @return Possibly empty List of commands, or null
      */
+    @Nullable
     @SuppressWarnings("all")
     protected List<String> getInjectCommands(boolean allowBlocking) {
         synchronized (synchronizer) {
@@ -204,7 +211,7 @@ public abstract class Policy {
      * @param shell Interactive shell to execute commands on
      * @param waitForIdle wait for the command to complete before returning ?
      */
-    public void inject(Shell.Interactive shell, boolean waitForIdle) {
+    public void inject(@NonNull Shell.Interactive shell, boolean waitForIdle) {
         synchronized (synchronizer) {
             // Get commands that inject our policies
             List<String> commands = getInjectCommands(waitForIdle);

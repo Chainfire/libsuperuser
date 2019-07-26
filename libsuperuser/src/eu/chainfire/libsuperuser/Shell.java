@@ -40,6 +40,8 @@ import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import eu.chainfire.libsuperuser.StreamGobbler.OnLineListener;
 import eu.chainfire.libsuperuser.StreamGobbler.OnStreamClosedListener;
 
@@ -125,8 +127,9 @@ public class Shell {
      * @param wantSTDERR Return STDERR in the output ?
      * @return Output of the commands, or null in case of an error
      */
+    @Nullable
     @Deprecated
-    public static List<String> run(String shell, String[] commands, boolean wantSTDERR) {
+    public static List<String> run(@NonNull String shell, @NonNull String[] commands, boolean wantSTDERR) {
         return run(shell, commands, null, wantSTDERR);
     }
 
@@ -168,7 +171,8 @@ public class Shell {
      * @param wantSTDERR  Return STDERR in the output ?
      * @return Output of the commands, or null in case of an error
      */
-    public static List<String> run(String shell, String[] commands, String[] environment,
+    @Nullable
+    public static List<String> run(@NonNull String shell, @NonNull String[] commands, @Nullable String[] environment,
                                    boolean wantSTDERR) {
         String shellUpper = shell.toUpperCase(Locale.ENGLISH);
 
@@ -275,7 +279,7 @@ public class Shell {
         return res;
     }
 
-    protected static String[] availableTestCommands = new String[]{
+    protected static final String[] availableTestCommands = new String[]{
             "echo -BOC-",
             "id"
     };
@@ -287,7 +291,7 @@ public class Shell {
      * @param checkForRoot true if we are expecting this shell to be running as root
      * @return true on success, false on error
      */
-    protected static boolean parseAvailableResult(List<String> ret, boolean checkForRoot) {
+    protected static boolean parseAvailableResult(@Nullable List<String> ret, boolean checkForRoot) {
         if (ret == null)
             return false;
 
@@ -321,8 +325,9 @@ public class Shell {
          * @param command The command to run
          * @return Output of the command, or null in case of an error
          */
+        @Nullable
         @Deprecated
-        public static List<String> run(String command) {
+        public static List<String> run(@NonNull String command) {
             return Shell.run("sh", new String[]{
                     command
             }, null, false);
@@ -336,8 +341,9 @@ public class Shell {
          * @param commands The commands to run
          * @return Output of the commands, or null in case of an error
          */
+        @Nullable
         @Deprecated
-        public static List<String> run(List<String> commands) {
+        public static List<String> run(@NonNull List<String> commands) {
             return Shell.run("sh", commands.toArray(new String[0]), null, false);
         }
 
@@ -349,8 +355,9 @@ public class Shell {
          * @param commands The commands to run
          * @return Output of the commands, or null in case of an error
          */
+        @Nullable
         @Deprecated
-        public static List<String> run(String[] commands) {
+        public static List<String> run(@NonNull String[] commands) {
             return Shell.run("sh", commands, null, false);
         }
     }
@@ -361,7 +368,9 @@ public class Shell {
      * if so which version.
      */
     public static class SU {
+        @Nullable
         private static Boolean isSELinuxEnforcing = null;
+        @NonNull
         private static String[] suVersion = new String[]{
                 null, null
         };
@@ -375,8 +384,9 @@ public class Shell {
          * @return Output of the command, or null if root isn't available or in
          * case of an error
          */
+        @Nullable
         @Deprecated
-        public static List<String> run(String command) {
+        public static List<String> run(@NonNull String command) {
             return Shell.run("su", new String[]{
                     command
             }, null, false);
@@ -391,8 +401,9 @@ public class Shell {
          * @return Output of the commands, or null if root isn't available or in
          * case of an error
          */
+        @Nullable
         @Deprecated
-        public static List<String> run(List<String> commands) {
+        public static List<String> run(@NonNull List<String> commands) {
             return Shell.run("su", commands.toArray(new String[0]), null, false);
         }
 
@@ -405,8 +416,9 @@ public class Shell {
          * @return Output of the commands, or null if root isn't available or in
          * case of an error
          */
+        @Nullable
         @Deprecated
-        public static List<String> run(String[] commands) {
+        public static List<String> run(@NonNull String[] commands) {
             return Shell.run("su", commands, null, false);
         }
 
@@ -444,6 +456,7 @@ public class Shell {
          * @param internal Request human-readable version or application internal version
          * @return String containing the su version or null
          */
+        @Nullable
         public static synchronized String version(boolean internal) {
             int idx = internal ? 0 : 1;
             if (suVersion[idx] == null) {
@@ -531,7 +544,8 @@ public class Shell {
          * @param context (SELinux) context name to use or null
          * @return Shell command
          */
-        public static String shell(int uid, String context) {
+        @NonNull
+        public static String shell(int uid, @Nullable String context) {
             // su[ --context <context>][ <uid>]
             String shell = "su";
 
@@ -565,6 +579,7 @@ public class Shell {
          *
          * @return Shell command
          */
+        @NonNull
         public static String shellMountMaster() {
             if (android.os.Build.VERSION.SDK_INT >= 17) {
                 return "su --mount-master";
@@ -712,7 +727,7 @@ public class Shell {
          * @param exitCode Exit code of the last command in the block
          * @param output All output generated by the command block
          */
-        void onCommandResult(int commandCode, int exitCode, List<String> output);
+        void onCommandResult(int commandCode, int exitCode, @NonNull List<String> output);
     }
 
     /**
@@ -740,7 +755,7 @@ public class Shell {
          * @param STDOUT All STDOUT output generated by the command block
          * @param STDERR All STDERR output generated by the command block
          */
-        void onCommandResult(int commandCode, int exitCode, List<String> STDOUT, List<String> STDERR);
+        void onCommandResult(int commandCode, int exitCode, @NonNull List<String> STDOUT, @NonNull List<String> STDERR);
     }
 
     /**
@@ -789,7 +804,7 @@ public class Shell {
          *
          * @param line One line of STDOUT output
          */
-        void onSTDOUT(String line);
+        void onSTDOUT(@NonNull String line);
     } 
 
     /**
@@ -813,7 +828,7 @@ public class Shell {
          *
          * @param line One line of STDERR output
          */
-        void onSTDERR(String line);
+        void onSTDERR(@NonNull String line);
     } 
 
     /**
@@ -857,7 +872,7 @@ public class Shell {
          *
          * @param inputStream InputStream to read from
          */
-        void onInputStream(InputStream inputStream);
+        void onInputStream(@NonNull InputStream inputStream);
     }
 
     /**
@@ -875,16 +890,22 @@ public class Shell {
 
         private final String[] commands;
         private final int code;
+        @Nullable
         private final OnCommandResultListener onCommandResultListener;
+        @Nullable
         private final OnCommandResultListener2 onCommandResultListener2;
+        @Nullable
         private final OnCommandLineListener onCommandLineListener;
+        @Nullable
         private final OnCommandInputStreamListener onCommandInputStreamListener;
+        @NonNull
         private final String marker;
 
+        @Nullable
         private volatile MarkerInputStream markerInputStream = null;
 
         @SuppressWarnings("unchecked") // if the user passes in List<> of anything other than String, that's on them
-        public Command(Object commands, int code, OnResult listener) {
+        public Command(@NonNull Object commands, int code, @Nullable OnResult listener) {
             if (commands instanceof String) {
                 this.commands = new String[] { (String)commands };
             } else if (commands instanceof List<?>) {
@@ -925,15 +946,20 @@ public class Shell {
      * Builder class for {@link Interactive}
      */
     public static class Builder {
+        @Nullable
         private Handler handler = null;
         private boolean autoHandler = true;
         private String shell = "sh";
         private boolean wantSTDERR = false;
         private boolean shellDiesOnSTDOUTERRClose = true;
         private boolean detectOpen = true;
+        @NonNull
         private List<Command> commands = new LinkedList<Command>();
+        @NonNull
         private Map<String, String> environment = new HashMap<String, String>();
+        @Nullable
         private OnLineListener onSTDOUTLineListener = null;
+        @Nullable
         private OnLineListener onSTDERRLineListener = null;
         private int watchdogTimeout = 0;
 
@@ -949,7 +975,8 @@ public class Shell {
          * @param handler Handler to use
          * @return This Builder object for method chaining
          */
-        public Builder setHandler(Handler handler) {
+        @NonNull
+        public Builder setHandler(@Nullable Handler handler) {
             this.handler = handler;
             return this;
         }
@@ -966,6 +993,7 @@ public class Shell {
          * @param autoHandler Auto-create handler ?
          * @return This Builder object for method chaining
          */
+        @NonNull
         public Builder setAutoHandler(boolean autoHandler) {
             this.autoHandler = autoHandler;
             return this;
@@ -978,7 +1006,8 @@ public class Shell {
          * @param shell Shell to use
          * @return This Builder object for method chaining
          */
-        public Builder setShell(String shell) {
+        @NonNull
+        public Builder setShell(@NonNull String shell) {
             this.shell = shell;
             return this;
         }
@@ -988,6 +1017,7 @@ public class Shell {
          *
          * @return This Builder object for method chaining
          */
+        @NonNull
         public Builder useSH() {
             return setShell("sh");
         }
@@ -997,6 +1027,7 @@ public class Shell {
          *
          * @return This Builder object for method chaining
          */
+        @NonNull
         public Builder useSU() {
             return setShell("su");
         }
@@ -1025,6 +1056,7 @@ public class Shell {
          * @param detectOpen Detect shell running properly (default true)
          * @return This Builder object for method chaining
          */
+        @NonNull
         @Deprecated
         public Builder setDetectOpen(boolean detectOpen) {
             this.detectOpen = detectOpen;
@@ -1047,6 +1079,7 @@ public class Shell {
          * @param shellDies Treat STDOUT/STDERR close as shell death (default true)
          * @return This Builder object for method chaining
          */
+        @NonNull
         @Deprecated
         public Builder setShellDiesOnSTDOUTERRClose(boolean shellDies) {
             this.shellDiesOnSTDOUTERRClose = shellDies;
@@ -1066,6 +1099,7 @@ public class Shell {
          * @param wantSTDERR Want error output ?
          * @return This Builder object for method chaining
          */
+        @NonNull
         @Deprecated
         public Builder setWantSTDERR(boolean wantSTDERR) {
             this.wantSTDERR = wantSTDERR;
@@ -1079,7 +1113,8 @@ public class Shell {
          * @param value Value of the environment variable
          * @return This Builder object for method chaining
          */
-        public Builder addEnvironment(String key, String value) {
+        @NonNull
+        public Builder addEnvironment(@NonNull String key, @NonNull String value) {
             environment.put(key, value);
             return this;
         }
@@ -1090,7 +1125,8 @@ public class Shell {
          * @param addEnvironment Map of environment variables
          * @return This Builder object for method chaining
          */
-        public Builder addEnvironment(Map<String, String> addEnvironment) {
+        @NonNull
+        public Builder addEnvironment(@NonNull Map<String, String> addEnvironment) {
             environment.putAll(addEnvironment);
             return this;
         }
@@ -1101,7 +1137,8 @@ public class Shell {
          * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          * @return This Builder object for method chaining
          */
-        public Builder addCommand(Object commands) {
+        @NonNull
+        public Builder addCommand(@NonNull Object commands) {
             return addCommand(commands, 0, null);
         }
 
@@ -1134,7 +1171,8 @@ public class Shell {
          * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          * @return This Builder object for method chaining
          */
-        public Builder addCommand(Object commands, int code, OnResult onResultListener) {
+        @NonNull
+        public Builder addCommand(@NonNull Object commands, int code, @Nullable OnResult onResultListener) {
             this.commands.add(new Command(commands, code, onResultListener));
             return this;
         }
@@ -1151,7 +1189,8 @@ public class Shell {
          * @param onLineListener Callback to be called for each line
          * @return This Builder object for method chaining
          */
-        public Builder setOnSTDOUTLineListener(OnLineListener onLineListener) {
+        @NonNull
+        public Builder setOnSTDOUTLineListener(@Nullable OnLineListener onLineListener) {
             this.onSTDOUTLineListener = onLineListener;
             return this;
         }
@@ -1168,7 +1207,8 @@ public class Shell {
          * @param onLineListener Callback to be called for each line
          * @return This Builder object for method chaining
          */
-        public Builder setOnSTDERRLineListener(OnLineListener onLineListener) {
+        @NonNull
+        public Builder setOnSTDERRLineListener(@Nullable OnLineListener onLineListener) {
             this.onSTDERRLineListener = onLineListener;
             return this;
         }
@@ -1191,6 +1231,7 @@ public class Shell {
          * @param watchdogTimeout Timeout, in seconds; 0 to disable
          * @return This Builder object for method chaining
          */
+        @NonNull
         public Builder setWatchdogTimeout(int watchdogTimeout) {
             this.watchdogTimeout = watchdogTimeout;
             return this;
@@ -1207,6 +1248,7 @@ public class Shell {
          * @param useMinimal true for reduced output, false for full output
          * @return This Builder object for method chaining
          */
+        @NonNull
         public Builder setMinimalLogging(boolean useMinimal) {
             Debug.setLogTypeEnabled(Debug.LOG_COMMAND | Debug.LOG_OUTPUT, !useMinimal);
             return this;
@@ -1217,6 +1259,7 @@ public class Shell {
          *
          * @return Interactive shell
          */
+        @NonNull
         public Interactive open() {
             return new Interactive(this, null);
         }
@@ -1228,7 +1271,8 @@ public class Shell {
          * @param onShellOpenResultListener Callback to return shell open status
          * @return Interactive shell
          */
-        public Interactive open(OnShellOpenResultListener onShellOpenResultListener) {
+        @NonNull
+        public Interactive open(@Nullable OnShellOpenResultListener onShellOpenResultListener) {
             return new Interactive(this, onShellOpenResultListener);
         }
 
@@ -1249,6 +1293,7 @@ public class Shell {
          *
          * @return Threaded interactive shell
          */
+        @NonNull
         public Threaded openThreaded() {
             return openThreadedEx(null, false);
         }
@@ -1272,7 +1317,8 @@ public class Shell {
          * @param onShellOpenResultListener Callback to return shell open status
          * @return Threaded interactive shell
          */
-        public Threaded openThreaded(OnShellOpenResultListener onShellOpenResultListener) {
+        @NonNull
+        public Threaded openThreaded(@Nullable OnShellOpenResultListener onShellOpenResultListener) {
             return openThreadedEx(onShellOpenResultListener, false);
         }
 
@@ -1311,7 +1357,8 @@ public class Shell {
          * @param wantSTDERR Return STDERR in the output ?
          * @return Output of the commands, or null in case of an error
          */
-        @Deprecated List<String> run(Object commands, boolean wantSTDERR);
+        @Nullable
+        @Deprecated List<String> run(@NonNull Object commands, boolean wantSTDERR);
 
         /**
          * Run commands, with a set environment, returning the output, or null on error
@@ -1323,7 +1370,8 @@ public class Shell {
          * @param wantSTDERR Return STDERR in the output ?
          * @return Output of the commands, or null in case of an error
          */
-        @Deprecated List<String> run(Object commands, String[] environment, boolean wantSTDERR);
+        @Nullable
+        @Deprecated List<String> run(@NonNull Object commands, @Nullable String[] environment, boolean wantSTDERR);
     }
 
     /**
@@ -1337,7 +1385,7 @@ public class Shell {
          * @return Exit code
          * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
          */
-        int run(Object commands) throws ShellDiedException;
+        int run(@NonNull Object commands) throws ShellDiedException;
 
         /**
          * <p>
@@ -1355,7 +1403,7 @@ public class Shell {
          * @return Exit code
          * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
          */
-        int run(Object commands, List<String> STDOUT, List<String> STDERR, boolean clear) throws ShellDiedException;
+        int run(@NonNull Object commands, @Nullable List<String> STDOUT, @Nullable List<String> STDERR, boolean clear) throws ShellDiedException;
 
         /**
          * <p>
@@ -1370,7 +1418,7 @@ public class Shell {
          * @return Exit code
          * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
          */
-        int run(Object commands, OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException;
+        int run(@NonNull Object commands, @NonNull OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException;
 
         /**
          * <p>
@@ -1385,7 +1433,7 @@ public class Shell {
          * @return Exit code
          * @throws ShellDiedException if shell is closed, was closed during command execution, or was never open (access denied)
          */
-        int run(Object commands, OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException;
+        int run(@NonNull Object commands, @NonNull OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException;
     }
 
     /**
@@ -1451,24 +1499,34 @@ public class Shell {
      * </p>
      */
     public static class Interactive implements SyncCommands {
+        @Nullable
         protected final Handler handler;
         private final boolean autoHandler;
         private final String shell;
         private boolean shellDiesOnSTDOUTERRClose;
         private final boolean wantSTDERR;
+        @NonNull
         private final List<Command> commands;
+        @NonNull
         private final Map<String, String> environment;
+        @Nullable
         private final OnLineListener onSTDOUTLineListener;
+        @Nullable
         private final OnLineListener onSTDERRLineListener;
         private int watchdogTimeout;
 
+        @Nullable
         private Process process = null;
+        @Nullable
         private DataOutputStream STDIN = null;
+        @Nullable
         private StreamGobbler STDOUT = null;
+        @Nullable
         private StreamGobbler STDERR = null;
         private final Object STDclosedSync = new Object();
         private boolean STDOUTclosed = false;
         private boolean STDERRclosed = false;
+        @Nullable
         private ScheduledThreadPoolExecutor watchdog = null;
 
         private volatile boolean running = false;
@@ -1486,10 +1544,15 @@ public class Shell {
         private final List<String> emptyStringList = new ArrayList<String>();
 
         private volatile int lastExitCode = 0;
+        @Nullable
         private volatile String lastMarkerSTDOUT = null;
+        @Nullable
         private volatile String lastMarkerSTDERR = null;
+        @Nullable
         private volatile Command command = null;
+        @Nullable
         private volatile List<String> bufferSTDOUT = null;
+        @Nullable
         private volatile List<String> bufferSTDERR = null;
 
         /**
@@ -1497,8 +1560,8 @@ public class Shell {
          *
          * @param builder Builder class to take values from
          */
-        protected Interactive(final Builder builder,
-                              final OnShellOpenResultListener onShellOpenResultListener) {
+        protected Interactive(@NonNull final Builder builder,
+                              @Nullable final OnShellOpenResultListener onShellOpenResultListener) {
             autoHandler = builder.autoHandler;
             shell = builder.shell;
             shellDiesOnSTDOUTERRClose = builder.shellDiesOnSTDOUTERRClose;
@@ -1527,7 +1590,7 @@ public class Shell {
                 watchdogTimeout = 60;
                 commands.add(0, new Command(Shell.availableTestCommands, 0, new OnCommandResultListener2() {
                     @Override
-                    public void onCommandResult(int commandCode, int exitCode, List<String> STDOUT, List<String> STDERR) {
+                    public void onCommandResult(int commandCode, int exitCode, @NonNull List<String> STDOUT, @NonNull List<String> STDERR) {
                         // we don't set opening to false here because idle must be set to true first
                         // to prevent falling through if 'isOpening() || isIdle()' is called
 
@@ -1603,7 +1666,7 @@ public class Shell {
          *
          * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          */
-        public synchronized void addCommand(Object commands) {
+        public synchronized void addCommand(@NonNull Object commands) {
             addCommand(commands, 0, null);
         }
 
@@ -1617,7 +1680,7 @@ public class Shell {
          * @param code User-defined value passed back to the callback
          * @param onResultListener One of OnCommandResultListener, OnCommandLineListener, OnCommandInputStreamListener
          */
-        public synchronized void addCommand(Object commands, int code, OnResult onResultListener) {
+        public synchronized void addCommand(@NonNull Object commands, int code, @Nullable OnResult onResultListener) {
             this.commands.add(new Command(commands, code, onResultListener));
             runNextCommand();
         }
@@ -1652,7 +1715,10 @@ public class Shell {
                 Debug.log(String.format(Locale.ENGLISH, "[%s%%] WATCHDOG_EXIT", shell.toUpperCase(Locale.ENGLISH)));
             }
 
-            postCallback(command, exitCode, bufferSTDOUT, bufferSTDERR, null);
+            if (command != null) {
+                //noinspection ConstantConditions // all write to 'command' are synchronized
+                postCallback(command, exitCode, bufferSTDOUT, bufferSTDERR, null);
+            }
 
             // prevent multiple callbacks for the same command
             command = null;
@@ -1718,49 +1784,52 @@ public class Shell {
                 lastMarkerSTDERR = null;
 
                 if (command.commands.length > 0) {
-                    try {
-                        if (command.onCommandResultListener != null) {
-                            bufferSTDOUT = Collections.synchronizedList(new ArrayList<String>());
-                        } else if (command.onCommandResultListener2 != null) {
-                            bufferSTDOUT = Collections.synchronizedList(new ArrayList<String>());
-                            bufferSTDERR = Collections.synchronizedList(new ArrayList<String>());
-                        }
-
-                        idle = false;
-                        this.command = command;
-                        if (command.onCommandInputStreamListener != null) {
-                            if (!STDOUT.isSuspended()) {
-                                if (Thread.currentThread().getId() == STDOUT.getId()) {
-                                    // if we're on the Gobbler thread we can suspend immediately,
-                                    // as we're not currently in a readLine() call
-                                    STDOUT.suspendGobbling();
-                                } else {
-                                    // if not, we trigger the readLine() call in the Gobbler to
-                                    // complete, and have the suspend triggered in the next
-                                    // onLine call
-                                    STDIN.write(("echo inputstream\n").getBytes("UTF-8"));
-                                    STDIN.flush();
-                                    STDOUT.waitForSuspend();
-                                }
+                    // STDIN and STDOUT would never be null here, but checks added to satisfy lint
+                    if ((STDIN != null) && (STDOUT != null)) {
+                        try {
+                            if (command.onCommandResultListener != null) {
+                                bufferSTDOUT = Collections.synchronizedList(new ArrayList<String>());
+                            } else if (command.onCommandResultListener2 != null) {
+                                bufferSTDOUT = Collections.synchronizedList(new ArrayList<String>());
+                                bufferSTDERR = Collections.synchronizedList(new ArrayList<String>());
                             }
-                        } else {
-                            STDOUT.resumeGobbling();
-                            startWatchdog();
+
+                            idle = false;
+                            this.command = command;
+                            if (command.onCommandInputStreamListener != null) {
+                                if (!STDOUT.isSuspended()) {
+                                    if (Thread.currentThread().getId() == STDOUT.getId()) {
+                                        // if we're on the Gobbler thread we can suspend immediately,
+                                        // as we're not currently in a readLine() call
+                                        STDOUT.suspendGobbling();
+                                    } else {
+                                        // if not, we trigger the readLine() call in the Gobbler to
+                                        // complete, and have the suspend triggered in the next
+                                        // onLine call
+                                        STDIN.write(("echo inputstream\n").getBytes("UTF-8"));
+                                        STDIN.flush();
+                                        STDOUT.waitForSuspend();
+                                    }
+                                }
+                            } else {
+                                STDOUT.resumeGobbling();
+                                startWatchdog();
+                            }
+                            for (String write : command.commands) {
+                                Debug.logCommand(String.format(Locale.ENGLISH, "[%s+] %s",
+                                        shell.toUpperCase(Locale.ENGLISH), write));
+                                STDIN.write((write + "\n").getBytes("UTF-8"));
+                            }
+                            STDIN.write(("echo " + command.marker + " $?\n").getBytes("UTF-8"));
+                            STDIN.write(("echo " + command.marker + " >&2\n").getBytes("UTF-8"));
+                            STDIN.flush();
+                            if (command.onCommandInputStreamListener != null) {
+                                command.markerInputStream = new MarkerInputStream(STDOUT, command.marker);
+                                postCallback(command, 0, null, null, command.markerInputStream);
+                            }
+                        } catch (IOException e) {
+                            // STDIN might have closed
                         }
-                        for (String write : command.commands) {
-                            Debug.logCommand(String.format(Locale.ENGLISH, "[%s+] %s",
-                                    shell.toUpperCase(Locale.ENGLISH), write));
-                            STDIN.write((write + "\n").getBytes("UTF-8"));
-                        }
-                        STDIN.write(("echo " + command.marker + " $?\n").getBytes("UTF-8"));
-                        STDIN.write(("echo " + command.marker + " >&2\n").getBytes("UTF-8"));
-                        STDIN.flush();
-                        if (command.onCommandInputStreamListener != null) {
-                            command.markerInputStream = new MarkerInputStream(STDOUT, command.marker);
-                            postCallback(command, 0, null, null, command.markerInputStream);
-                        }
-                    } catch (IOException e) {
-                        // STDIN might have closed
                     }
                 } else {
                     runNextCommand(false);
@@ -1797,9 +1866,11 @@ public class Shell {
         /**
          * Processes a STDOUT/STDERR line containing an end/exitCode marker
          */
+        @SuppressWarnings("ConstantConditions") // all writes to 'command' are synchronized
         private synchronized void processMarker() {
-            if (command.marker.equals(lastMarkerSTDOUT)
-                    && (command.marker.equals(lastMarkerSTDERR))) {
+            if ((command != null) &&
+                    command.marker.equals(lastMarkerSTDOUT) &&
+                    command.marker.equals(lastMarkerSTDERR)) {
                 postCallback(command, lastExitCode, bufferSTDOUT, bufferSTDERR, null);
                 stopWatchdog();
                 command = null;
@@ -1817,7 +1888,7 @@ public class Shell {
          * @param line Line to process
          * @param listener Callback to call or null, supports OnLineListener, OnCommandLineSTDOUT, OnCommandLineSTDERR
          */
-        private synchronized void processLine(final String line, final Object listener, final boolean isSTDERR) {
+        private synchronized void processLine(@NonNull final String line, @Nullable final Object listener, final boolean isSTDERR) {
             if (listener != null) {
                 if (handler != null) {
                     startCallback();
@@ -1854,7 +1925,8 @@ public class Shell {
          *
          * @param line Line to add
          */
-        private synchronized void addBuffer(String line, boolean isSTDERR) {
+        @SuppressWarnings("ConstantConditions") // all writes to bufferSTDxxx are synchronized
+        private synchronized void addBuffer(@NonNull String line, boolean isSTDERR) {
             if (isSTDERR) {
                 if (bufferSTDERR != null) {
                     bufferSTDERR.add(line);
@@ -1880,9 +1952,9 @@ public class Shell {
          *
          * @return if callback has already completed
          */
-        private boolean postCallback(final Command fCommand, final int fExitCode,
-                                     final List<String> fSTDOUT, final List<String> fSTDERR,
-                                     final InputStream inputStream) {
+        private boolean postCallback(@NonNull final Command fCommand, final int fExitCode,
+                                     @Nullable final List<String> fSTDOUT, @Nullable final List<String> fSTDERR,
+                                     @Nullable final InputStream inputStream) {
             if (
                     (fCommand.onCommandResultListener == null) &&
                     (fCommand.onCommandResultListener2 == null) &&
@@ -1974,12 +2046,15 @@ public class Shell {
                     process = Runtime.getRuntime().exec(shell, env);
                 }
 
+                // this should never actually happen
+                if (process == null) throw new NullPointerException();
+
                 OnStreamClosedListener onStreamClosedListener = new OnStreamClosedListener() {
                     @Override
                     public void onStreamClosed() {
                         if (shellDiesOnSTDOUTERRClose || !isRunning()) {
-                            if (Thread.currentThread() == STDOUT) STDERR.resumeGobbling();
-                            if (Thread.currentThread() == STDERR) STDOUT.resumeGobbling();
+                            if ((STDERR != null) && (Thread.currentThread() == STDOUT)) STDERR.resumeGobbling();
+                            if ((STDOUT != null) && (Thread.currentThread() == STDERR)) STDOUT.resumeGobbling();
 
                             boolean isLast;
                             synchronized (STDclosedSync){
@@ -1987,8 +2062,12 @@ public class Shell {
                                 if (Thread.currentThread() == STDERR) STDERRclosed = true;
                                 isLast = STDOUTclosed && STDERRclosed;
 
-                                if ((command != null) && (command.markerInputStream != null)) {
-                                    command.markerInputStream.setEOF();
+                                Command c = command;
+                                if (c != null) {
+                                    MarkerInputStream mis = c.markerInputStream;
+                                    if (mis != null) {
+                                        mis.setEOF();
+                                    }
                                 }
                             }
 
@@ -1998,6 +2077,7 @@ public class Shell {
                                 synchronized (Interactive.this) {
                                     // our shell died for unknown reasons - abort all submissions
                                     if (command != null) {
+                                        //noinspection ConstantConditions // all writes to 'command' are synchronized
                                         postCallback(command, OnResult.SHELL_DIED, bufferSTDOUT, bufferSTDERR, null);
                                         command = null;
                                     }
@@ -2013,13 +2093,14 @@ public class Shell {
                 STDIN = new DataOutputStream(process.getOutputStream());
                 STDOUT = new StreamGobbler(shell.toUpperCase(Locale.ENGLISH) + "-",
                         process.getInputStream(), new OnLineListener() {
+                    @SuppressWarnings("ConstantConditions") // all writes to 'command' are synchronized
                     @Override
-                    public void onLine(String line) {
+                    public void onLine(@NonNull String line) {
                         Command cmd = command;
                         if ((cmd != null) && (cmd.onCommandInputStreamListener != null)) {
                             // we need to suspend the normal input reader
                             if (line.equals("inputstream")) {
-                                STDOUT.suspendGobbling();
+                                if (STDOUT != null) STDOUT.suspendGobbling();
                                 return;
                             }
                         }
@@ -2063,8 +2144,9 @@ public class Shell {
                 }, onStreamClosedListener);
                 STDERR = new StreamGobbler(shell.toUpperCase(Locale.ENGLISH) + "*",
                         process.getErrorStream(), new OnLineListener() {
+                    @SuppressWarnings("ConstantConditions") // all writes to 'command' are synchronized
                     @Override
-                    public void onLine(String line) {
+                    public void onLine(@NonNull String line) {
                         synchronized (Interactive.this) {
                             if (command == null) {
                                 return;
@@ -2139,6 +2221,9 @@ public class Shell {
         }
 
         protected void closeImmediately(boolean fromIdle) {
+            // these should never happen, satisfy lint
+            if ((STDIN == null) || (STDOUT == null) || (STDERR == null) || (process == null)) throw new NullPointerException();
+
             boolean _idle = isIdle(); // idle must be checked synchronized
 
             synchronized (this) {
@@ -2234,6 +2319,9 @@ public class Shell {
          * other side of the pipe is closed.
          */
         public synchronized void kill() {
+            // these should never happen, satisfy lint
+            if ((STDIN == null) || (process == null)) throw new NullPointerException();
+
             running = false;
             closed = true;
 
@@ -2409,7 +2497,7 @@ public class Shell {
          * @param defaultIfInterrupted What to return if an interrupt occurs, null to keep waiting
          * @return If shell was opened successfully
          */
-        public boolean waitForOpened(Boolean defaultIfInterrupted) {
+        public boolean waitForOpened(@Nullable Boolean defaultIfInterrupted) {
             if (Debug.getSanityChecksEnabledEffective() && Debug.onMainThread()) {
                 Debug.log(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
                 throw new ShellOnMainThreadException(ShellOnMainThreadException.EXCEPTION_WAIT_IDLE);
@@ -2452,13 +2540,13 @@ public class Shell {
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands) throws ShellDiedException {
+        public int run(@NonNull Object commands) throws ShellDiedException {
             return run(commands, null, null, false);
         }
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands, final List<String> STDOUT, final List<String> STDERR, boolean clear) throws ShellDiedException {
+        public int run(@NonNull Object commands, @Nullable final List<String> STDOUT, @Nullable final List<String> STDERR, boolean clear) throws ShellDiedException {
             if (clear) {
                 if (STDOUT != null) STDOUT.clear();
                 if (STDERR != null) STDERR.clear();
@@ -2466,7 +2554,7 @@ public class Shell {
             final int[] exitCode = new int[1];
             addCommand(commands, 0, new OnCommandResultListener2() {
                 @Override
-                public void onCommandResult(int commandCode, int intExitCode, List<String> intSTDOUT, List<String> intSTDERR) {
+                public void onCommandResult(int commandCode, int intExitCode, @NonNull List<String> intSTDOUT, @NonNull List<String> intSTDERR) {
                     exitCode[0] = intExitCode;
                     if (STDOUT != null) STDOUT.addAll(intSTDOUT);
                     if (STDERR != null) STDERR.addAll(intSTDERR);
@@ -2479,16 +2567,16 @@ public class Shell {
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands, final OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException {
+        public int run(@NonNull Object commands, @NonNull final OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException {
             final int[] exitCode = new int[1];
             addCommand(commands, 0, new OnCommandLineListener() {
                 @Override
-                public void onSTDERR(String line) {
+                public void onSTDERR(@NonNull String line) {
                     onSyncCommandLineListener.onSTDERR(line);
                 }
 
                 @Override
-                public void onSTDOUT(String line) {
+                public void onSTDOUT(@NonNull String line) {
                     onSyncCommandLineListener.onSTDOUT(line);
                 }
 
@@ -2504,16 +2592,16 @@ public class Shell {
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands, final OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException {
+        public int run(@NonNull Object commands, @NonNull final OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException {
             final int[] exitCode = new int[1];
             addCommand(commands, 0, new OnCommandInputStreamListener() {
                 @Override
-                public void onSTDERR(String line) {
+                public void onSTDERR(@NonNull String line) {
                     onSyncCommandInputStreamListener.onSTDERR(line);
                 }
 
                 @Override
-                public void onInputStream(InputStream inputStream) {
+                public void onInputStream(@NonNull InputStream inputStream) {
                     onSyncCommandInputStreamListener.onInputStream(inputStream);
                 }
 
@@ -2561,6 +2649,7 @@ public class Shell {
             }
         }
 
+        @NonNull
         private final HandlerThread handlerThread;
         private final boolean pooled;
         private final Object onCloseCalledSync = new Object();
@@ -2585,6 +2674,7 @@ public class Shell {
                     onShellOpenResultListener);
 
             // don't try this at home
+            //noinspection ConstantConditions
             handlerThread = (HandlerThread)handler.getLooper().getThread();
 
             // its ok if close is called before this
@@ -2672,6 +2762,7 @@ public class Shell {
             return onPoolRemoveCalled;
         }
 
+        @SuppressWarnings("ConstantConditions") // handler is never null
         @Override
         protected void onClosed() {
             // clean up our thread
@@ -2694,6 +2785,7 @@ public class Shell {
 
             if (!handlerThread.isAlive()) return;
             handler.post(new Runnable() {
+                @SuppressWarnings("ConstantConditions") // handler is never null
                 @Override
                 public void run() {
                     synchronized (callbackSync) {
@@ -2724,6 +2816,7 @@ public class Shell {
          *
          * @return ThreadedAutoCloseable on API &gt;= 19, null otherwise
          */
+        @Nullable
         public ThreadedAutoCloseable ac() {
             if (this instanceof ThreadedAutoCloseable) {
                 return (ThreadedAutoCloseable)this;
@@ -2752,7 +2845,7 @@ public class Shell {
      */
     @TargetApi(Build.VERSION_CODES.KITKAT)
     public static class ThreadedAutoCloseable extends Threaded implements AutoCloseable {
-        protected ThreadedAutoCloseable(Builder builder, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
+        protected ThreadedAutoCloseable(@NonNull Builder builder, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
             super(builder, onShellOpenResultListener, pooled);
         }
     }
@@ -2782,7 +2875,7 @@ public class Shell {
          *
          * @param shell Shell command, like "sh" or "su"
          */
-        public PoolWrapper(String shell) {
+        public PoolWrapper(@NonNull String shell) {
             this.shellCommand = shell;
         }
 
@@ -2801,6 +2894,7 @@ public class Shell {
          * @return A {@link Threaded} instance from the {@link Pool}
          * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
          */
+        @NonNull
         public Threaded get() throws ShellDiedException {
             return Shell.Pool.get(shellCommand);
         }
@@ -2821,7 +2915,8 @@ public class Shell {
          * @return A {@link Threaded} instance from the {@link Pool}
          * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
          */
-        public Threaded get(OnShellOpenResultListener onShellOpenResultListener) throws ShellDiedException {
+        @NonNull
+        public Threaded get(@Nullable OnShellOpenResultListener onShellOpenResultListener) throws ShellDiedException {
             return Shell.Pool.get(shellCommand, onShellOpenResultListener);
         }
 
@@ -2832,6 +2927,7 @@ public class Shell {
          *
          * @return A {@link Threaded} instance
          */
+        @NonNull
         public Threaded getUnpooled() {
             return Shell.Pool.getUnpooled(shellCommand);
         }
@@ -2844,13 +2940,15 @@ public class Shell {
          * @param onShellOpenResultListener Callback to return shell open status
          * @return A {@link Threaded} instance
          */
-        public Threaded getUnpooled(OnShellOpenResultListener onShellOpenResultListener) {
+        @NonNull
+        public Threaded getUnpooled(@Nullable OnShellOpenResultListener onShellOpenResultListener) {
             return Shell.Pool.getUnpooled(shellCommand, onShellOpenResultListener);
         }
 
         // documented in DeprecatedSyncCommands interface
+        @Nullable
         @Deprecated
-        public List<String> run(Object commands, final boolean wantSTDERR) {
+        public List<String> run(@NonNull Object commands, final boolean wantSTDERR) {
             try {
                 Threaded shell = get();
                 try {
@@ -2858,7 +2956,7 @@ public class Shell {
                     final List<String> output = new ArrayList<String>();
                     shell.addCommand(commands, 0, new OnCommandResultListener2() {
                         @Override
-                        public void onCommandResult(int commandCode, int intExitCode, List<String> intSTDOUT, List<String> intSTDERR) {
+                        public void onCommandResult(int commandCode, int intExitCode, @NonNull List<String> intSTDOUT, @NonNull List<String> intSTDERR) {
                             exitCode[0] = intExitCode;
                             output.addAll(intSTDOUT);
                             if (wantSTDERR) {
@@ -2878,9 +2976,10 @@ public class Shell {
         }
 
         // documented in DeprecatedSyncCommands interface
+        @Nullable
         @SuppressWarnings("unchecked") // if the user passes in List<> of anything other than String, that's on them
         @Deprecated
-        public List<String> run(Object commands, String[] environment, boolean wantSTDERR) {
+        public List<String> run(@NonNull Object commands, @Nullable String[] environment, boolean wantSTDERR) {
             if (environment == null) {
                 return run(commands, wantSTDERR);
             } else {
@@ -2921,13 +3020,13 @@ public class Shell {
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands) throws ShellDiedException {
+        public int run(@NonNull Object commands) throws ShellDiedException {
             return run(commands, null, null, false);
         }
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands, List<String> STDOUT, List<String> STDERR, boolean clear) throws ShellDiedException {
+        public int run(@NonNull Object commands, @Nullable List<String> STDOUT, @Nullable List<String> STDERR, boolean clear) throws ShellDiedException {
             Threaded shell = get();
             try {
                 return shell.run(commands, STDOUT, STDERR, clear);
@@ -2938,7 +3037,7 @@ public class Shell {
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands, OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException {
+        public int run(@NonNull Object commands, @NonNull OnSyncCommandLineListener onSyncCommandLineListener) throws ShellDiedException {
             Threaded shell = get();
             try {
                 return shell.run(commands, onSyncCommandLineListener);
@@ -2949,7 +3048,7 @@ public class Shell {
 
         // documented in SyncCommands interface
         @Override
-        public int run(Object commands, OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException {
+        public int run(@NonNull Object commands, @NonNull OnSyncCommandInputStreamListener onSyncCommandInputStreamListener) throws ShellDiedException {
             Threaded shell = get();
             try {
                 return shell.run(commands, onSyncCommandInputStreamListener);
@@ -3014,6 +3113,7 @@ public class Shell {
              *
              * @return New {@link Builder} instance
              */
+            @NonNull
             Shell.Builder newBuilder();
         }
 
@@ -3023,6 +3123,7 @@ public class Shell {
          * @see #setOnNewBuilderListener(OnNewBuilderListener)
          */
         public static final OnNewBuilderListener defaultOnNewBuilderListener = new OnNewBuilderListener() {
+            @NonNull
             @SuppressWarnings("deprecation")
             @Override
             public Shell.Builder newBuilder() {
@@ -3033,7 +3134,9 @@ public class Shell {
             }
         };
 
+        @Nullable
         private static OnNewBuilderListener onNewBuilderListener = null;
+        @NonNull
         private static Map<String, ArrayList<Threaded>> pool = new HashMap<String, ArrayList<Threaded>>();
         private static int poolSize = 4; // only applicable to su, we keep only 1 of others
 
@@ -3043,6 +3146,7 @@ public class Shell {
          *
          * @return Current {@link OnNewBuilderListener} interface, or null for {@link #defaultOnNewBuilderListener}
          */
+        @Nullable
         public static synchronized OnNewBuilderListener getOnNewBuilderListener() {
             return onNewBuilderListener;
         }
@@ -3052,7 +3156,7 @@ public class Shell {
          *
          * @param onNewBuilderListener {@link OnNewBuilderListener} to use, or null to revert to {@link #defaultOnNewBuilderListener}
          */
-        public static synchronized void setOnNewBuilderListener(OnNewBuilderListener onNewBuilderListener) {
+        public static synchronized void setOnNewBuilderListener(@Nullable OnNewBuilderListener onNewBuilderListener) {
             Pool.onNewBuilderListener = onNewBuilderListener;
         }
 
@@ -3092,6 +3196,7 @@ public class Shell {
             }
         }
 
+        @NonNull
         private static Shell.Builder newBuilder() {
             synchronized (Pool.class) {
                 if (onNewBuilderListener != null) {
@@ -3108,7 +3213,8 @@ public class Shell {
          * @param shell Shell command
          * @return A {@link Threaded}
          */
-        public static Threaded getUnpooled(String shell) {
+        @NonNull
+        public static Threaded getUnpooled(@NonNull String shell) {
             return getUnpooled(shell, null);
         }
 
@@ -3122,11 +3228,12 @@ public class Shell {
          * @param onShellOpenResultListener Callback to return shell open status
          * @return A {@link Threaded}
          */
-        public static Threaded getUnpooled(String shell, OnShellOpenResultListener onShellOpenResultListener) {
-            return newInstance(shell, null, false);
+        @NonNull
+        public static Threaded getUnpooled(@NonNull String shell, @Nullable OnShellOpenResultListener onShellOpenResultListener) {
+            return newInstance(shell, onShellOpenResultListener, false);
         }
 
-        private static Threaded newInstance(String shell, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
+        private static Threaded newInstance(@NonNull String shell, @Nullable OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
             Debug.logPool(String.format(Locale.ENGLISH, "newInstance(shell:%s, pooled:%d)", shell, pooled ? 1 : 0));
             return newBuilder().setShell(shell).openThreadedEx(onShellOpenResultListener, pooled);
         }
@@ -3137,9 +3244,10 @@ public class Shell {
          * @param toRemove Shell to remove, should already be closed, or null
          * @param removeAll Remove all shells, closing them
          */
-        private static void cleanup(Threaded toRemove, boolean removeAll) {
+        private static void cleanup(@Nullable Threaded toRemove, boolean removeAll) {
             for (String key : pool.keySet().toArray(new String[0])) {
                 ArrayList<Threaded> shells = pool.get(key);
+                if (shells == null) continue; // never happens, satisfy lint
 
                 int wantedTotal = Shell.SU.isSU(key) ? poolSize : 1;
                 int haveTotal = 0;
@@ -3184,6 +3292,7 @@ public class Shell {
                 for (String key : pool.keySet()) {
                     int reserved = 0;
                     ArrayList<Threaded> shells = pool.get(key);
+                    if (shells == null) continue; // never happens, satisfy lint
                     for (int i = 0; i < shells.size(); i++) {
                         if (shells.get(i).isReserved()) reserved++;
                     }
@@ -3208,7 +3317,8 @@ public class Shell {
          * @return A {@link Threaded}
          * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
          */
-        public static Threaded get(String shell) throws ShellDiedException {
+        @NonNull
+        public static Threaded get(@NonNull String shell) throws ShellDiedException {
             return get(shell, null);
         }
 
@@ -3229,7 +3339,8 @@ public class Shell {
          * @return A {@link Threaded} instance from the {@link Pool}
          * @throws ShellDiedException if a shell could not be retrieved (execution failed, access denied)
          */
-        public static Threaded get(String shell, final OnShellOpenResultListener onShellOpenResultListener) throws ShellDiedException {
+        @NonNull
+        public static Threaded get(@NonNull String shell, @Nullable final OnShellOpenResultListener onShellOpenResultListener) throws ShellDiedException {
             Threaded threaded = null;
             String shellUpper = shell.toUpperCase(Locale.ENGLISH);
 
@@ -3267,6 +3378,7 @@ public class Shell {
                         if (pool.get(shellUpper) == null) {
                             pool.put(shellUpper, new ArrayList<Threaded>());
                         }
+                        //noinspection ConstantConditions // pool.get(shellUpper) is never null here
                         pool.get(shellUpper).add(threaded);
                     }
                 }
@@ -3275,6 +3387,7 @@ public class Shell {
                 if (onShellOpenResultListener != null) {
                     final Threaded fThreaded = threaded;
                     threaded.startCallback();
+                    //noinspection ConstantConditions // handler is never null
                     threaded.handler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -3294,7 +3407,7 @@ public class Shell {
         /**
          * @param threaded Shell to return to pool
          */
-        private static void releaseReservation(Threaded threaded) {
+        private static void releaseReservation(@NonNull Threaded threaded) {
             Debug.logPool("releaseReservation");
             threaded.setReserved(false);
             cleanup(null, false);
@@ -3303,7 +3416,7 @@ public class Shell {
         /**
          * @param threaded This shell is dead
          */
-        private static synchronized void removeShell(Threaded threaded) {
+        private static synchronized void removeShell(@NonNull Threaded threaded) {
             Debug.logPool("removeShell");
             cleanup(threaded, false);
         }
@@ -3323,7 +3436,7 @@ public class Shell {
          * @param shell Shell command, like "sh" or "su"
          * @return {@link PoolWrapper} for this shell command
          */
-        public static PoolWrapper getWrapper(String shell) {
+        public static PoolWrapper getWrapper(@NonNull String shell) {
             if (shell.toUpperCase(Locale.ENGLISH).equals("SH") && (SH != null)) {
                 return SH;
             } else if (shell.toUpperCase(Locale.ENGLISH).equals("SU") && (SU != null)) {

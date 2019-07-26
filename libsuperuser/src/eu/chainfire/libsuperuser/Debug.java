@@ -20,6 +20,9 @@ import android.os.Looper;
 import android.util.Log;
 import android.os.Process;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 /**
  * Utility class for logging and debug features that (by default) does nothing when not in debug mode
  */
@@ -70,6 +73,7 @@ public class Debug {
 
     private static int logTypes = LOG_ALL;
 
+    @Nullable
     private static OnLogListener logListener = null;
 
     /**
@@ -82,7 +86,7 @@ public class Debug {
      * @param typeIndicator String indicator for message type
      * @param message       The message to log
      */
-    private static void logCommon(int type, String typeIndicator, String message) {
+    private static void logCommon(int type, @NonNull String typeIndicator, @NonNull String message) {
         if (debug && ((logTypes & type) == type)) {
             if (logListener != null) {
                 logListener.onLog(type, typeIndicator, message);
@@ -99,7 +103,7 @@ public class Debug {
      *
      * @param message The message to log
      */
-    public static void log(String message) {
+    public static void log(@NonNull String message) {
         logCommon(LOG_GENERAL, "G", message);
     }
 
@@ -110,7 +114,7 @@ public class Debug {
      *
      * @param message The message to log
      */
-    public static void logCommand(String message) {
+    public static void logCommand(@NonNull String message) {
         logCommon(LOG_COMMAND, "C", message);
     }
 
@@ -121,7 +125,7 @@ public class Debug {
      *
      * @param message The message to log
      */
-    public static void logOutput(String message) {
+    public static void logOutput(@NonNull String message) {
         logCommon(LOG_OUTPUT, "O", message);
     }
 
@@ -130,7 +134,7 @@ public class Debug {
      *
      * @param message The message to log
      */
-    public static void logPool(String message) {
+    public static void logPool(@NonNull String message) {
         logCommon(LOG_POOL, "P", message);
     }
 
@@ -190,7 +194,7 @@ public class Debug {
      *
      * @param onLogListener Custom log listener or NULL to revert to default
      */
-    public static void setOnLogListener(OnLogListener onLogListener) {
+    public static void setOnLogListener(@Nullable OnLogListener onLogListener) {
         logListener = onLogListener;
     }
 
@@ -199,6 +203,7 @@ public class Debug {
      *
      * @return Current custom log handler or NULL if none is present
      */
+    @Nullable
     public static OnLogListener getOnLogListener() {
         return logListener;
     }

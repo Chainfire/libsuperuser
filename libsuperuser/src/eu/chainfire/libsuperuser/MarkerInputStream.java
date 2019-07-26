@@ -20,10 +20,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
+import androidx.annotation.NonNull;
+
 @SuppressWarnings("WeakerAccess")
 public class MarkerInputStream extends InputStream {
     private static final String EXCEPTION_EOF = "EOF encountered, shell probably died";
 
+    @NonNull
     private final StreamGobbler gobbler;
     private final InputStream inputStream;
     private final byte[] marker;
@@ -35,7 +38,7 @@ public class MarkerInputStream extends InputStream {
     private volatile boolean eof = false;
     private volatile boolean done = false;
 
-    public MarkerInputStream(StreamGobbler gobbler, String marker) throws UnsupportedEncodingException {
+    public MarkerInputStream(@NonNull StreamGobbler gobbler, @NonNull String marker) throws UnsupportedEncodingException {
         this.gobbler = gobbler;
         this.gobbler.suspendGobbling();
         this.inputStream = gobbler.getInputStream();
@@ -63,7 +66,7 @@ public class MarkerInputStream extends InputStream {
     }
 
     @Override
-    public int read(byte[] b) throws IOException {
+    public int read(@NonNull byte[] b) throws IOException {
         return read(b, 0, b.length);
     }
 
@@ -93,7 +96,7 @@ public class MarkerInputStream extends InputStream {
     }
 
     @Override
-    public synchronized int read(byte[] b, int off, int len) throws IOException {
+    public synchronized int read(@NonNull byte[] b, int off, int len) throws IOException {
         if (done) return -1;
 
         fill(markerLength - bufferUsed);
@@ -123,7 +126,7 @@ public class MarkerInputStream extends InputStream {
                 if (isEOF()) throw new IOException(EXCEPTION_EOF);
                 fill(1);
             }
-            gobbler.getOnLineListener().onLine(new String(buffer, 0, bufferUsed - 1, "UTF-8"));
+            if (gobbler.getOnLineListener() != null) gobbler.getOnLineListener().onLine(new String(buffer, 0, bufferUsed - 1, "UTF-8"));
             done = true;
             return -1;
         } else {

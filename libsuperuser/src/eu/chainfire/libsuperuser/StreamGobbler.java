@@ -23,6 +23,9 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Locale;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 /**
  * Thread utility class continuously reading from an InputStream
  */
@@ -63,11 +66,17 @@ public class StreamGobbler extends Thread {
         void onStreamClosed();
     }
 
+    @NonNull
     private final String shell;
+    @NonNull
     private final InputStream inputStream;
+    @NonNull
     private final BufferedReader reader;
+    @Nullable
     private final List<String> writer;
+    @Nullable
     private final OnLineListener lineListener;
+    @Nullable
     private final OnStreamClosedListener streamClosedListener;
     private volatile boolean active = true;
 
@@ -82,8 +91,8 @@ public class StreamGobbler extends Thread {
      * @param inputStream InputStream to read from
      * @param outputList {@literal List<String>} to write to, or null
      */
-    public StreamGobbler(String shell, InputStream inputStream, List<String> outputList) {
-        super("Gobbler#" + String.valueOf(incThreadCounter()));
+    public StreamGobbler(@NonNull String shell, @NonNull InputStream inputStream, @Nullable List<String> outputList) {
+        super("Gobbler#" + incThreadCounter());
         this.shell = shell;
         this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -104,8 +113,8 @@ public class StreamGobbler extends Thread {
      * @param onLineListener OnLineListener callback
      * @param onStreamClosedListener OnStreamClosedListener callback
      */
-    public StreamGobbler(String shell, InputStream inputStream, OnLineListener onLineListener, OnStreamClosedListener onStreamClosedListener) {
-        super("Gobbler#" + String.valueOf(incThreadCounter()));
+    public StreamGobbler(@NonNull String shell, @NonNull InputStream inputStream, @Nullable OnLineListener onLineListener, @Nullable OnStreamClosedListener onStreamClosedListener) {
+        super("Gobbler#" + incThreadCounter());
         this.shell = shell;
         this.inputStream = inputStream;
         reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -214,6 +223,7 @@ public class StreamGobbler extends Thread {
      *
      * @return source InputStream
      */
+    @NonNull
     public InputStream getInputStream() {
         return inputStream;
     }
@@ -223,6 +233,7 @@ public class StreamGobbler extends Thread {
      *
      * @return OnLineListener
      */
+    @Nullable
     public OnLineListener getOnLineListener() {
         return lineListener;
     }

@@ -21,6 +21,9 @@ import android.os.Build;
 import java.util.List;
 import java.util.Locale;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 /**
  * Utility class to decide between toolbox and toybox calls on M.
  * Note that some calls (such as 'ls') are present in both, this
@@ -37,6 +40,7 @@ public class Toolbox {
     private static final int TOYBOX_SDK = 23;
 
     private static final Object synchronizer = new Object();
+    @Nullable
     private static volatile String toybox = null;
 
     /**
@@ -89,7 +93,8 @@ public class Toolbox {
      * @param args Arguments passed to String.format
      * @return Formatted String prefixed with either toolbox or toybox
      */
-    public static String command(String format, Object... args) {
+    @SuppressWarnings("ConstantConditions")
+    public static String command(@NonNull String format, Object... args) {
         if (Build.VERSION.SDK_INT < TOYBOX_SDK) {
             return String.format(Locale.ENGLISH, "toolbox " + format, args);
         }

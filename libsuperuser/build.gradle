@@ -3,7 +3,7 @@ apply plugin: 'com.github.dcendents.android-maven'
 apply plugin: 'com.jfrog.bintray'
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 28
     buildToolsVersion '28.0.3'
 
     defaultConfig {
@@ -82,6 +82,7 @@ install {
 }
 
 dependencies {
+    implementation 'androidx.annotation:annotation:1.1.0'
 }
 
 task sourcesJar(type: Jar) {
