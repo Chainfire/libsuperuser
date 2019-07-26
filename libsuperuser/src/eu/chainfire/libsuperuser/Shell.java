@@ -39,6 +39,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.lang.Object;
+import java.lang.String;
 
 import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
@@ -698,7 +700,7 @@ public class Shell {
     }
 
     /**
-     * Callback for {@link Builder#open(OnShellOpenResultListener)}
+     * Callback for {@link Shell.Builder#open(Shell.OnShellOpenResultListener)}
      */
     public interface OnShellOpenResultListener extends OnResult {
         /**
@@ -1351,13 +1353,13 @@ public class Shell {
     }
 
     /**
-     * Callback interface for {@link SyncCommands#run(Object, OnSyncCommandLineListener)}
+     * Callback interface for {@link SyncCommands#run(Object, Shell.OnSyncCommandLineListener)}
      */
     public interface OnSyncCommandLineListener extends OnCommandLineSTDOUT, OnCommandLineSTDERR {
     }
 
     /**
-     * Callback interface for {@link SyncCommands#run(Object, OnSyncCommandInputStreamListener)}
+     * Callback interface for {@link SyncCommands#run(Object, Shell.OnSyncCommandInputStreamListener)}
      */
     public interface OnSyncCommandInputStreamListener extends OnCommandInputStream, OnCommandLineSTDERR {
     }
@@ -1579,9 +1581,13 @@ public class Shell {
         private volatile List<String> bufferSTDERR = null;
 
         /**
-         * The only way to create an instance: Shell.Builder::open()
+         * The only way to create an instance: Shell.Builder::open(...)
+         *
+         * @see Shell.Builder#open()
+         * @see Shell.Builder#open(Shell.OnShellOpenResultListener)
          *
          * @param builder Builder class to take values from
+         * @param onShellOpenResultListener Callback
          */
         @AnyThread
         protected Interactive(@NonNull final Builder builder,
@@ -1696,10 +1702,10 @@ public class Shell {
         }
 
         /**
-         * Add commands to execute with a callback. See {@link Builder#addCommand(Object, int, OnResult)}
+         * Add commands to execute with a callback. See {@link Shell.Builder#addCommand(Object, int, Shell.OnResult)}
          * for details
          *
-         * @see Shell.Builder#addCommand(Object, int, OnResult)
+         * @see Shell.Builder#addCommand(Object, int, Shell.OnResult)
          *
          * @param commands Commands to execute, accepts String, List&lt;String&gt;, and String[]
          * @param code User-defined value passed back to the callback
@@ -2708,6 +2714,16 @@ public class Shell {
             return new Handler(handlerThread.getLooper());
         }
 
+        /**
+         * The only way to create an instance: Shell.Builder::openThreaded(...)
+         *
+         * @see Shell.Builder#openThreaded()
+         * @see Shell.Builder#openThreaded(Shell.OnShellOpenResultListener)
+         *
+         * @param builder Builder class to take values from
+         * @param onShellOpenResultListener Callback
+         * @param pooled Will this instance be pooled ?
+         */
         protected Threaded(Builder builder, OnShellOpenResultListener onShellOpenResultListener, boolean pooled) {
             super(builder.setHandler(createHandlerThread()).
                     setDetectOpen(true).
@@ -2718,7 +2734,7 @@ public class Shell {
             //noinspection ConstantConditions
             handlerThread = (HandlerThread)handler.getLooper().getThread();
 
-            // its ok if close is called before this
+            // it's ok if close is called before this
             this.pooled = pooled;
         }
 

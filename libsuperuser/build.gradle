@@ -93,6 +93,12 @@ task sourcesJar(type: Jar) {
 task javadoc(type: Javadoc) {
     source = android.sourceSets.main.java.srcDirs
     classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+
+    android.libraryVariants.all { variant ->
+        variant.javaCompileProvider.configure {
+            javadoc.classpath += files(it.classpath.files)
+        }
+    }
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
