@@ -20,6 +20,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.os.Process;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -27,6 +28,7 @@ import androidx.annotation.Nullable;
  * Utility class for logging and debug features that (by default) does nothing when not in debug mode
  */
 @SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
+@AnyThread
 public class Debug {
 
     // ----- DEBUGGING -----

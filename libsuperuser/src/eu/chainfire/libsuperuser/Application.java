@@ -20,6 +20,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.widget.Toast;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -35,6 +36,7 @@ public class Application extends android.app.Application {
      * @param context Any context belonging to this application
      * @param message The message to show
      */
+    @AnyThread
     public static void toast(@Nullable Context context, @NonNull String message) {
         // this is a static method so it is easier to call,
         // as the context checking and casting is done for you
@@ -65,6 +67,7 @@ public class Application extends android.app.Application {
      *
      * @param r Runnable to run
      */
+    @AnyThread
     public void runInApplicationThread(@NonNull Runnable r) {
         mApplicationHandler.post(r);
     }

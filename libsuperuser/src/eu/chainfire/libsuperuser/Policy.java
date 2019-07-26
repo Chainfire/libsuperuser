@@ -19,8 +19,10 @@ package eu.chainfire.libsuperuser;
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 
 /**
  * Helper class for modifying SELinux policies, reducing the number of calls to a minimum.
@@ -64,6 +66,7 @@ public abstract class Policy {
     /**
      * @return Have we injected our policies already?
      */
+    @AnyThread
     public static boolean haveInjected() {
         return injected;
     }
@@ -72,6 +75,7 @@ public abstract class Policy {
      * Reset policies-have-been-injected state, if you really need to inject them again. Extremely
      * rare, you will probably never need this.
      */
+    @AnyThread
     public static void resetInjected() {
         synchronized (synchronizer) {
             injected = false;
@@ -88,11 +92,15 @@ public abstract class Policy {
 
     /**
      * Detects availability of the supolicy tool. Only useful if Shell.SU.isSELinuxEnforcing()
-     * returns true.
+     * returns true. Caches return value, can safely be called from the UI thread <b>if</b> a
+     * a cached value exists.
+     *
+     * @see #resetCanInject()
      *
      * @return canInject?
      */
     @SuppressWarnings({"deprecation", "ConstantConditions"})
+    @WorkerThread // first call only
     public static boolean canInject() {
         synchronized (synchronizer) {
             if (canInject != null) return canInject;
@@ -120,6 +128,7 @@ public abstract class Policy {
     /**
      * Reset cached can-inject state and force redetection on nect canInject() call
      */
+    @AnyThread
     public static void resetCanInject() {
         synchronized (synchronizer) {
             canInject = null;
@@ -144,6 +153,7 @@ public abstract class Policy {
      */
     @Nullable
     @SuppressWarnings("all")
+    @WorkerThread // if allowBlocking
     protected List<String> getInjectCommands(boolean allowBlocking) {
         synchronized (synchronizer) {
             // No reason to bother if we're in permissive mode
@@ -187,6 +197,7 @@ public abstract class Policy {
      * the main thread in debug mode.
      */
     @SuppressWarnings({"deprecation"})
+    @WorkerThread
     public void inject() {
         synchronized (synchronizer) {
             // Get commands that inject our policies
@@ -209,8 +220,9 @@ public abstract class Policy {
      * upon return.
      *
      * @param shell Interactive shell to execute commands on
-     * @param waitForIdle wait for the command to complete before returning ?
+     * @param waitForIdle wait for the command to complete before returning?
      */
+    @WorkerThread // if waitForIdle
     public void inject(@NonNull Shell.Interactive shell, boolean waitForIdle) {
         synchronized (synchronizer) {
             // Get commands that inject our policies

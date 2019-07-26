@@ -23,8 +23,10 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Locale;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 
 /**
  * Thread utility class continuously reading from an InputStream
@@ -91,6 +93,7 @@ public class StreamGobbler extends Thread {
      * @param inputStream InputStream to read from
      * @param outputList {@literal List<String>} to write to, or null
      */
+    @AnyThread
     public StreamGobbler(@NonNull String shell, @NonNull InputStream inputStream, @Nullable List<String> outputList) {
         super("Gobbler#" + incThreadCounter());
         this.shell = shell;
@@ -113,6 +116,7 @@ public class StreamGobbler extends Thread {
      * @param onLineListener OnLineListener callback
      * @param onStreamClosedListener OnStreamClosedListener callback
      */
+    @AnyThread
     public StreamGobbler(@NonNull String shell, @NonNull InputStream inputStream, @Nullable OnLineListener onLineListener, @Nullable OnStreamClosedListener onStreamClosedListener) {
         super("Gobbler#" + incThreadCounter());
         this.shell = shell;
@@ -169,6 +173,7 @@ public class StreamGobbler extends Thread {
     /**
      * <p>Resume consuming the input from the stream</p>
      */
+    @AnyThread
     public void resumeGobbling() {
         if (!active) {
             synchronized (this) {
@@ -183,6 +188,7 @@ public class StreamGobbler extends Thread {
      *
      * <p>This should <i>only</i> be called from the OnLineListener callback!</p>
      */
+    @AnyThread
     public void suspendGobbling() {
         synchronized (this) {
             active = false;
@@ -195,6 +201,7 @@ public class StreamGobbler extends Thread {
      *
      * <p>Obviously this cannot be called from the same thread as {@link #suspendGobbling()}</p>
      */
+    @WorkerThread
     public void waitForSuspend() {
         synchronized (this) {
             while (active) {
@@ -212,6 +219,7 @@ public class StreamGobbler extends Thread {
      *
      * @return is gobbling suspended?
      */
+    @AnyThread
     public boolean isSuspended() {
         synchronized (this) {
             return !active;
@@ -224,6 +232,7 @@ public class StreamGobbler extends Thread {
      * @return source InputStream
      */
     @NonNull
+    @AnyThread
     public InputStream getInputStream() {
         return inputStream;
     }
@@ -234,6 +243,7 @@ public class StreamGobbler extends Thread {
      * @return OnLineListener
      */
     @Nullable
+    @AnyThread
     public OnLineListener getOnLineListener() {
         return lineListener;
     }

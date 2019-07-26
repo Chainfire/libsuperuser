@@ -20,9 +20,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.WorkerThread;
 
 @SuppressWarnings("WeakerAccess")
+@AnyThread
 public class MarkerInputStream extends InputStream {
     private static final String EXCEPTION_EOF = "EOF encountered, shell probably died";
 

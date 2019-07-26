@@ -23,6 +23,7 @@ import java.util.Locale;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 
 /**
  * Utility class to decide between toolbox and toybox calls on M.
@@ -48,6 +49,7 @@ public class Toolbox {
      * the main thread in debug mode.
      */
     @SuppressWarnings("all")
+    @WorkerThread
     public static void init() {
         // already inited ?
         if (toybox != null) return;
@@ -94,6 +96,7 @@ public class Toolbox {
      * @return Formatted String prefixed with either toolbox or toybox
      */
     @SuppressWarnings("ConstantConditions")
+    @WorkerThread // if init() not yet called
     public static String command(@NonNull String format, Object... args) {
         if (Build.VERSION.SDK_INT < TOYBOX_SDK) {
             return String.format(Locale.ENGLISH, "toolbox " + format, args);
