@@ -391,6 +391,15 @@ For more advanced usages of root, such as running Java/Kotlin code as
 root directly, please see my [libRootJava](https://github.com/Chainfire/librootjava)
 library.
 
+## Annotations
+
+Nullity and thread annotations have recently been added.
+
+Please note that *all* methods that *may* be problematic on the UI
+thread have been marked as `@WorkerThread`. Some of these methods
+can be called from the UI thread without issue in specific conditions.
+If so, those conditions should be noted in the method's javadoc.
+
 ## Gradle
 
 Gradle:
