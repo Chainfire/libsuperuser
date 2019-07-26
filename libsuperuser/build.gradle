@@ -104,8 +104,4 @@ artifacts {
     archives sourcesJar
 }
 
-task findConventions << {
-    println project.getConvention()
-}
-
 bintrayUpload.dependsOn install
