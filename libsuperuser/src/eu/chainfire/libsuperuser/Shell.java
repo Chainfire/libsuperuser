@@ -2573,7 +2573,7 @@ public class Shell {
         private static Handler createHandlerThread() {
             // to work-around having to call super() as first line in constructor, but still
             // being able to keep fields final
-            HandlerThread handlerThread = new HandlerThread("Shell.Threaded#" + String.valueOf(incThreadCounter()));
+            HandlerThread handlerThread = new HandlerThread("Shell.Threaded#" + incThreadCounter());
             handlerThread.start();
             return new Handler(handlerThread.getLooper());
         }
