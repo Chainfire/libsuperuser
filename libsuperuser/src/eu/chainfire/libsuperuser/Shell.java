@@ -2231,7 +2231,7 @@ public class Shell {
         protected void onClosed() {
             // callbacks may still be scheduled/running at this point, and this may be called
             // multiple times!
-            if (inClosingJoin) return; // prevent deadlock, we will be called after
+            // if (inClosingJoin) return; // prevent deadlock, we will be called after
         }
 
         /**
@@ -2740,12 +2740,25 @@ public class Shell {
 
             // it's ok if close is called before this
             this.pooled = pooled;
+            if (this.pooled) protect();
         }
 
         @Override
         protected void finalize() throws Throwable {
             if (pooled) closed = true; // prevent ShellNotClosedException exception on pool
             super.finalize();
+        }
+
+        private void protect() {
+            synchronized (onCloseCalledSync) {
+                if (!onClosedCalled) {
+                    Garbage.protect(this);
+                }
+            }
+        }
+
+        private void collect() {
+            Garbage.collect(this);
         }
 
         /**
@@ -2766,7 +2779,9 @@ public class Shell {
         @Override
         @AnyThread
         public void close() {
-            // NOT close, but closeWhenIdle, note!
+            protect();
+
+            // NOT close(Immediately), but closeWhenIdle, note!
             if (pooled) {
                 super.closeWhenIdle();
             } else {
@@ -2776,6 +2791,8 @@ public class Shell {
 
         @Override
         protected void closeImmediately(boolean fromIdle) {
+            protect();
+
             if (pooled) {
                 if (fromIdle) {
                     boolean callRelease = false;
@@ -2805,6 +2822,8 @@ public class Shell {
         }
 
         private void closeWhenIdle(boolean fromPool) {
+            protect();
+
             if (pooled) {
                 synchronized (onPoolRemoveCalledSync) {
                     if (!onPoolRemoveCalled) {
@@ -2825,8 +2844,10 @@ public class Shell {
             closeWhenIdle(false);
         }
 
-        synchronized boolean wasPoolRemoveCalled() {
-            return onPoolRemoveCalled;
+        boolean wasPoolRemoveCalled() {
+            synchronized (onPoolRemoveCalledSync) {
+                return onPoolRemoveCalled;
+            }
         }
 
         @SuppressWarnings("ConstantConditions") // handler is never null
@@ -2843,35 +2864,47 @@ public class Shell {
                         callRemove = true;
                     }
                 }
-                if (callRemove) Pool.removeShell(this);
+                if (callRemove) {
+                    protect();
+                    Pool.removeShell(this);
+                }
             }
+
+            // we've been GC'd by removeShell above, code below should already have been executed
+            if (onCloseCalledSync == null) return;
 
             synchronized (onCloseCalledSync) {
                 if (onClosedCalled) return;
                 onClosedCalled = true;
             }
 
-            super.onClosed();
-
-            if (!handlerThread.isAlive()) return;
-            handler.post(new Runnable() {
-                @SuppressWarnings("ConstantConditions") // handler is never null
-                @Override
-                public void run() {
-                    synchronized (callbackSync) {
-                        if (callbacks > 0) {
-                            // we still have some callbacks running
-                            handler.postDelayed(this, 1000);
-                        } else {
-                            if (Build.VERSION.SDK_INT >= 18) {
-                                handlerThread.quitSafely();
-                            } else {
-                                handlerThread.quit();
+            try {
+                super.onClosed();
+            } finally {
+                if (!handlerThread.isAlive()) {
+                    collect();
+                } else {
+                    handler.post(new Runnable() {
+                        @SuppressWarnings("ConstantConditions") // handler is never null
+                        @Override
+                        public void run() {
+                            synchronized (callbackSync) {
+                                if (callbacks > 0) {
+                                    // we still have some callbacks running
+                                    handler.postDelayed(this, 1000);
+                                } else {
+                                    collect();
+                                    if (Build.VERSION.SDK_INT >= 18) {
+                                        handlerThread.quitSafely();
+                                    } else {
+                                        handlerThread.quit();
+                                    }
+                                }
                             }
                         }
-                    }
+                    });
                 }
-            });
+            }
         }
 
         /**
@@ -3219,7 +3252,7 @@ public class Shell {
         @Nullable
         private static OnNewBuilderListener onNewBuilderListener = null;
         @NonNull
-        private static Map<String, ArrayList<Threaded>> pool = new HashMap<String, ArrayList<Threaded>>();
+        private static final Map<String, ArrayList<Threaded>> pool = new HashMap<String, ArrayList<Threaded>>();
         private static int poolSize = 4; // only applicable to su, we keep only 1 of others
 
         /**
@@ -3566,5 +3599,29 @@ public class Shell {
          * {@link PoolWrapper} for the "su" (root) shell
          */
         public static final PoolWrapper SU = getWrapper("su");
+    }
+
+    /**
+     * <p>
+     * Helper class to prevent {@link Threaded} instances being garbage collected too soon. Not
+     * reference counted, a single {@link #collect(Threaded)} call clears the protection.
+     * </p>
+     */
+    static class Garbage {
+        static final ArrayList<Threaded> shells = new ArrayList<Threaded>();
+
+        @AnyThread
+        static synchronized void protect(@NonNull Threaded shell) {
+            if (shells.indexOf(shell) == -1) {
+                shells.add(shell);
+            }
+        }
+
+        @AnyThread
+        static synchronized void collect(@NonNull Threaded shell) {
+            if (shells.indexOf(shell) != -1) {
+                shells.remove(shell);
+            }
+        }
     }
 }
