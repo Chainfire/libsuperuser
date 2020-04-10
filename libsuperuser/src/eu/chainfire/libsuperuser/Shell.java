@@ -1562,6 +1562,7 @@ public class Shell {
         protected volatile int callbacks = 0;
         private volatile int watchdogCount;
         private volatile boolean doCloseWhenIdle = false;
+        protected volatile boolean inClosingJoin = false;
 
         private final Object idleSync = new Object();
         protected final Object callbackSync = new Object();
@@ -2230,6 +2231,7 @@ public class Shell {
         protected void onClosed() {
             // callbacks may still be scheduled/running at this point, and this may be called
             // multiple times!
+            if (inClosingJoin) return; // prevent deadlock, we will be called after
         }
 
         /**
@@ -2317,8 +2319,10 @@ public class Shell {
 
                 // Otherwise we may deadlock waiting on eachother, happens when this is run from OnShellOpenResultListener
                 if ((Thread.currentThread() != STDOUT) && (Thread.currentThread() != STDERR)) {
-                    STDOUT.join();
-                    STDERR.join();
+                    inClosingJoin = true;
+                    STDOUT.conditionalJoin();
+                    STDERR.conditionalJoin();
+                    inClosingJoin = false;
                 }
 
                 stopWatchdog();
@@ -2774,21 +2778,25 @@ public class Shell {
         protected void closeImmediately(boolean fromIdle) {
             if (pooled) {
                 if (fromIdle) {
+                    boolean callRelease = false;
                     synchronized (onPoolRemoveCalledSync) {
                         if (!onPoolRemoveCalled) {
-                            Pool.releaseReservation(this);
-                        }
-                        if (closeEvenIfPooled) {
-                            super.closeImmediately(true);
+                            callRelease = true;
                         }
                     }
+                    if (callRelease) Pool.releaseReservation(this);
+                    if (closeEvenIfPooled) {
+                        super.closeImmediately(true);
+                    }
                 } else {
+                    boolean callRemove = false;
                     synchronized (onPoolRemoveCalledSync) {
                         if (!onPoolRemoveCalled) {
                             onPoolRemoveCalled = true;
-                            Pool.removeShell(this);
+                            callRemove = true;
                         }
                     }
+                    if (callRemove) Pool.removeShell(this);
                     super.closeImmediately(false);
                 }
             } else {
@@ -2825,14 +2833,17 @@ public class Shell {
         @Override
         protected void onClosed() {
             // clean up our thread
+            if (inClosingJoin) return; // prevent deadlock, we will be called after
 
             if (pooled) {
+                boolean callRemove = false;
                 synchronized (onPoolRemoveCalledSync) {
                     if (!onPoolRemoveCalled) {
                         onPoolRemoveCalled = true;
-                        Pool.removeShell(this);
+                        callRemove = true;
                     }
                 }
+                if (callRemove) Pool.removeShell(this);
             }
 
             synchronized (onCloseCalledSync) {
@@ -3246,7 +3257,7 @@ public class Shell {
          * @return Current pool size
          */
         @AnyThread
-        public synchronized static int getPoolSize() {
+        public static synchronized int getPoolSize() {
             return poolSize;
         }
 
@@ -3263,7 +3274,7 @@ public class Shell {
          * @param poolSize Pool size to use
          */
         @AnyThread
-        public synchronized static void setPoolSize(int poolSize) {
+        public static synchronized void setPoolSize(int poolSize) {
             poolSize = Math.max(poolSize, 1);
             if (poolSize != Pool.poolSize) {
                 Pool.poolSize = poolSize;
@@ -3273,13 +3284,11 @@ public class Shell {
 
         @NonNull
         @AnyThread
-        private static Shell.Builder newBuilder() {
-            synchronized (Pool.class) {
-                if (onNewBuilderListener != null) {
-                    return onNewBuilderListener.newBuilder();
-                } else {
-                    return defaultOnNewBuilderListener.newBuilder();
-                }
+        private static synchronized Shell.Builder newBuilder() {
+            if (onNewBuilderListener != null) {
+                return onNewBuilderListener.newBuilder();
+            } else {
+                return defaultOnNewBuilderListener.newBuilder();
             }
         }
 
@@ -3488,7 +3497,7 @@ public class Shell {
         /**
          * @param threaded Shell to return to pool
          */
-        private static void releaseReservation(@NonNull Threaded threaded) {
+        private static synchronized void releaseReservation(@NonNull Threaded threaded) {
             Debug.logPool("releaseReservation");
             threaded.setReserved(false);
             cleanup(null, false);

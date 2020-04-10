@@ -81,6 +81,7 @@ public class StreamGobbler extends Thread {
     @Nullable
     private final OnStreamClosedListener streamClosedListener;
     private volatile boolean active = true;
+    private volatile boolean calledOnClose = false;
 
     /**
      * <p>StreamGobbler constructor</p>
@@ -131,7 +132,6 @@ public class StreamGobbler extends Thread {
     public void run() {
         // keep reading the InputStream until it ends (or an error occurs)
         // optionally pausing when a command is executed that consumes the InputStream itself
-        boolean calledOnClose = false;
         try {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -165,6 +165,7 @@ public class StreamGobbler extends Thread {
 
         if (!calledOnClose) {
             if (streamClosedListener != null) {
+                calledOnClose = true;
                 streamClosedListener.onStreamClosed();
             }
         }
@@ -246,5 +247,11 @@ public class StreamGobbler extends Thread {
     @AnyThread
     public OnLineListener getOnLineListener() {
         return lineListener;
+    }
+
+    void conditionalJoin() throws InterruptedException {
+        if (calledOnClose) return; // deadlock from callback, we're inside exit procedure
+        if (Thread.currentThread() == this) return; // can't join self
+        join();
     }
 }
