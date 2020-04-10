@@ -3332,20 +3332,32 @@ public class Shell {
          * @param removeAll Remove all shells, closing them
          */
         private static void cleanup(@Nullable Threaded toRemove, boolean removeAll) {
-            for (String key : pool.keySet().toArray(new String[0])) {
-                ArrayList<Threaded> shells = pool.get(key);
-                if (shells == null) continue; // never happens, satisfy lint
+            String[] keySet;
+            synchronized (pool) {
+                keySet = pool.keySet().toArray(new String[0]);
+            }
+            for (String key : keySet) {
+                ArrayList<Threaded> shellsModify = pool.get(key);
+                if (shellsModify == null) continue;
+
+                @SuppressWarnings("unchecked")
+                ArrayList<Threaded> shellsCheck = (ArrayList<Threaded>)shellsModify.clone();
+                // we use this so we don't need to synchronize the entire method, but can still
+                // prevent issues by the list being modified asynchronously
 
                 int wantedTotal = Shell.SU.isSU(key) ? poolSize : 1;
                 int haveTotal = 0;
                 int haveAvailable = 0;
 
-                for (int i = shells.size() - 1; i >= 0; i--) {
-                    Threaded threaded = shells.get(i);
+                for (int i = shellsCheck.size() - 1; i >= 0; i--) {
+                    Threaded threaded = shellsCheck.get(i);
                     if (!threaded.isRunning() || (threaded == toRemove) || removeAll) {
-                        if (removeAll) threaded.closeWhenIdle();
                         Debug.logPool("shell removed");
-                        shells.remove(i);
+                        shellsCheck.remove(threaded);
+                        synchronized (pool) {
+                            shellsModify.remove(threaded);
+                        }
+                        if (removeAll) threaded.closeWhenIdle();
                     } else {
                         haveTotal += 1;
                         if (!threaded.isReserved()) {
@@ -3356,11 +3368,14 @@ public class Shell {
 
                 if ((haveTotal > wantedTotal) && (haveAvailable > 1)) {
                     int kill = Math.min(haveAvailable - 1, haveTotal - wantedTotal);
-                    for (int i = shells.size() - 1; i >= 0; i--) {
-                        Threaded threaded = shells.get(i);
+                    for (int i = shellsCheck.size() - 1; i >= 0; i--) {
+                        Threaded threaded = shellsCheck.get(i);
                         if (!threaded.isReserved() && threaded.isIdle()) {
-                            shells.remove(i);
                             Debug.logPool("shell killed");
+                            shellsCheck.remove(threaded);
+                            synchronized (pool) {
+                                shellsModify.remove(threaded);
+                            }
                             // not calling closeImmediately() due to possible race
                             threaded.closeWhenIdle(true);
                             kill--;
@@ -3370,20 +3385,24 @@ public class Shell {
                     }
                 }
 
-                if (shells.size() == 0) {
-                    pool.remove(key);
+                synchronized (pool) {
+                    if (shellsModify.size() == 0) {
+                        pool.remove(key);
+                    }
                 }
             }
 
             if (Debug.getDebug()) {
-                for (String key : pool.keySet()) {
-                    int reserved = 0;
-                    ArrayList<Threaded> shells = pool.get(key);
-                    if (shells == null) continue; // never happens, satisfy lint
-                    for (int i = 0; i < shells.size(); i++) {
-                        if (shells.get(i).isReserved()) reserved++;
+                synchronized (pool) {
+                    for (String key : pool.keySet()) {
+                        int reserved = 0;
+                        ArrayList<Threaded> shells = pool.get(key);
+                        if (shells == null) continue; // never happens, satisfy lint
+                        for (int i = 0; i < shells.size(); i++) {
+                            if (shells.get(i).isReserved()) reserved++;
+                        }
+                        Debug.logPool(String.format(Locale.ENGLISH, "cleanup: shell:%s count:%d reserved:%d", key, shells.size(), reserved));
                     }
-                    Debug.logPool(String.format(Locale.ENGLISH, "cleanup: shell:%s count:%d reserved:%d", key, shells.size(), reserved));
                 }
             }
         }
