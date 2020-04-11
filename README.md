@@ -1,4 +1,4 @@
-# librootjava
+# libsuperuser
 
 [![ci][1]][2]
 
