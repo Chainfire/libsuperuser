@@ -1,3 +1,7 @@
+# librootjava
+
+[![ci][1]][2]
+
 Example code for "How-To SU"
 
 For some outdated background details, see:
@@ -418,3 +422,6 @@ dependencies {
     implementation 'eu.chainfire:libsuperuser:1.0.0.+'
 }
 ```
+
+[1]: https://github.com/Chainfire/libsuperuser/workflows/ci/badge.svg
+[2]: https://github.com/Chainfire/libsuperuser/actions
