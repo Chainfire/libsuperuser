@@ -1,0 +1,612 @@
+How-To SU
+Guidelines for problem-free su usage
+(for Android Developers)
+Release v1.80
+v1.00: October 29, 2012
+v1.10: November 7, 2012
+v1.20: January 23, 2013
+v1.30: February 28, 2013
+v1.40: January 20, 2014 - G+ post
+v1.50: May 18, 2014 - G+ post
+v1.51: June 16, 2014
+v1.60: October 10, 2014
+v1.70: November 26, 2014
+v1.71: November 27, 2014
+v1.80: December 22, 2016
+Written by and copyright ©:
+Jorrit "Chainfire" Jongma
+Author of SuperSU
+Initially reviewed by (v1.00):
+Adam "ChainsDD" Shanks
+Author of Superuser
+Home location:
+http://su.chainfire.eu/
+
+Source codes:
+https://github.com/Chainfire/libsuperuser
+Discussion:
+http://forum.xda-developers.com/showthread.php?t=1962550
+All rights reserved
+
+0. Table of Contents
+0     Table of Contents
+
+1     Introduction
+
+2     Code: libsuperuser
+
+3     How to call su
+3.1     Common pitfalls
+3.2     Making the call
+3.3     Checking for su availability
+3.4     Checking for su version
+3.5     Mount namespaces
+
+4     When to call su
+4.1     When not to call su
+4.2     Detecting the main thread
+4.3     Using AsyncTask
+4.4     Using IntentService
+
+5     SELinux / SEAndroid (Nov 27, 2014)
+5.1     Introduction
+5.2     What this means for you
+5.3     Detecting SELinux
+5.4     Contexts
+5.4.1     Basics (Dec 22, 2016)
+5.4.2     init vs init_shell vs shell vs supersu (Dec 22, 2016)
+5.4.3     Why switch contexts ?
+5.4.4     How to switch contexts
+5.4.5     When to switch contexts
+5.4.6     Filesystem and socket contexts
+5.4.7     Direct context manipulation
+5.5     Policies
+5.5.1     The supolicy tool
+5.5.2     Default patches (Dec 22, 2016)
+5.5.3     Use caution
+5.5.4     Audits
+5.5.5     Allow
+5.5.6     Other policy statements (Dec 22, 2016)
+
+6     Embedding (Nov 27, 2014)
+6.1     Files
+6.2     Custom ROMs
+6.3     Exploits
+
+X     Miscellaneous updates
+X.1     Gobbling (Dec 17, 2012)
+X.2     Full content logging (Jan 23, 2013)
+X.3     Parameters for su (Jan 23, 2013)
+X.4     ACCESS_SUPERUSER permission DEPRECATED (Nov 26, 2014)
+X.5     Tapjacking protection and overlays (Oct 10, 2014)
+X.6     su.d (Dec 22, 2016)
+
+
+1. Introduction
+Since I started writing SuperSU, I have run into a lot of implementation problems. Problems with my own code in SuperSU, undocumented oddities in Android, and problems in other people's apps requiring root. Over time I've gone through a lot of app's source codes (or reversed the binaries) to figure out the root of the problems, and worked with various app authors (from the unknown to the famous) to fix them.
+
+Due to those efforts, it has become clear that most freezes and crashes related to su access - both with SuperSU as well as Superuser - originate from two core problems: how su is called, and when su is called. These cases are not as straightforward as they may sound.
+
+I have been asked by a number of developers to write this guide to provide guidelines and further information on how to get around all these problems - and that is what you are reading. As this is important to all root apps, I have also asked Adam "ChainsDD" Shanks (author of Superuser) to review this document, which he has done.
+
+I don't expect this to be the final word on the matter, or that the code samples will be perfect. I hope this document and the code will provide you the insights needed, and generally be a good start.
+
+- Jorrit "Chainfire" Jongma, author of SuperSU
+
+
+
+2. Code: libsuperuser
+There is source code accompanying this document, in the form of [libsuperuser @ GitHub] (a library project containing reusable code to call su) and [libsuperuser_example @ GitHub] (an example project using that library, and demonstrating some techniques to call su in the background).
+
+The goal of these two projects is specifically not to provide a perfect library catering to your every root need. The goal is to demonstrate techniques you may want to reuse in your root app that work around common problems, in as little code as possible. Advanced techniques like for example maintaining a background su session and using that session when needed are not covered by this article, for the sake of keeping it simple. The library does however include the Shell.Interactive class to make that possible. The code is short, I would advise you to simply read the source for both projects.
+
+Please note that this library behaves slightly differently in debug mode (unsigned APK), providing additional logging and exceptions. Some versions of the ADT do not set/unset debug mode correctly when signing and exporting the final APK. You should definitely check that your exported APKs are not still logging all shell calls before publishing them!
+
+
+
+3. How to call su
+3.1. Common pitfalls
+Runtime.exec() and ProcessBuilder
+It is tempting to use Runtime.getRuntime().exec("su -c [command]");, but you should be aware that [command] should be a single parameter, and thus may require quoting. Unfortunately both quoting the [command] parameter as well as passing the paramaters as separate variables to either Runtime.exec() or ProcessBuilder does not work consistently across all Android versions, and thus this construct should be avoided entirely. It is not impossible to do this right - but there's a high risk of problems.
+
+Outputting a script for su to run
+As one workaround to the above, various root app authors have taken to writing scripts and then calling su -c /path/to/script to execute all the commands. This does avoid potential parameter passing issues, but you are creating an unneeded temporary file and requires that your writable path does not contain a space. And while the latter is true for the moment, it is a bad idea to depend on that. There may also be SELinux-related issues using this method (see the SELinux section below).
+
+Rapid successive su calls
+The su call is an expensive operation, and usually involves quite a bit of code being executed, as well as I/O being performed. It is good practise as well as good for performance to batch your commands together as much as possible. Launch as few su processes as you can, and perform as many commands per process as possible.
+
+Many su calls throughout the app's lifecycle
+Some apps need to make a lot of su calls throughout the app's lifecycle but can't batch these commands together. In such a case you should consider starting an interactive su shell and keeping it alive alongside your app, so you can pipe commands to it as needed. This might have positive effects on the performance and responsiveness of your application.
+
+Hardcoded checks
+The rights management application is not always /system/app/Superuser.apk. The package name is not a constant either. The su binary's location is not always /system/xbin/su. Many apps have hardcoded checks like these to find su. This is a bad idea and completely unreliable.
+
+Assuming the su binary accepts parameters
+Not all su binaries support all parameters. Worse, there's a good chance the su binary will start an interactive shell instead of producing an error if an unknown parameter is present (the -v parameter to check version is a good example of this). If you do not anticipate this, your process might never regain control from the su call, and could become stuck.
+
+3.2. Making the call
+A common method to call su that avoids the known issues listed above is by creating an interactive shell and piping commands to it. This is done by calling Runtime.getRuntime().exec("su");, and retrieving input and output streams from the returned Process object. Doing this is a fairly straight-forward piece of code, but including the debug logs and checks it's a bit long to reproduce here.
+
+The core code is located here: [libsuperuser :: Shell.java @ GitHub]. Shell.run() is a generic call to run shell code, the following more specific (static) utility functions are the ones you will probably end up using:
+
+	List<String> Shell.SH.run(String command)
+	List<String> Shell.SH.run(List<String> commands)
+	List<String> Shell.SH.run(String[] commands)
+
+	List<String> Shell.SU.run(String command)
+	List<String> Shell.SU.run(List<String> commands)
+	List<String> Shell.SU.run(String[] commands)
+The SH variants are used for a non-root shell, where the SU variants are used for a root shell. These calls return a List<String> containing the output of the shell commands. If there was no output, the list is empty, but not null. The result is only null in case an error occured; an access denied may or may not trigger null. These are blocking calls.
+
+Note that in debug compiles, all shell STDIN/STDOUT/STDERR will be logged to logcat, and these calls will (intentionally) crash your app if called from the main thread. The reason for this will be discussed in section 4. When to call su.
+
+3.3. Checking for su availability
+There are many ways to check whether or not superuser access is available. The two most popular methods are either trying to detect the existance of the su binary or superuser package, or actually trying to run su and seeing what happens. I prefer the latter method, as running su is what you're after no matter where it's at and if you know how to find it - as long as the system does.
+As further test, run the id command, which prints the ids of the current user and group, so you can use the output to confirm whether or not the shell you have started also really has root rights (the output contains uid=0).
+
+A problem with the id command is that it depends on an external binary that must be present. I have never run into the situation where it wasn't, but to be sure we also issue an echo command that we check for, so that if the id command is not available, we can still know whether a shell was run at all. In the latter case, we assume the shell also has root priviliges - if this ends up being wrong, the user has worse problems than your app not getting root access. If you want to be absolutely sure even in this remote case of a wrongly rooted device, you would have to include its own native binary to perform the check. Of course, if you are including native binaries anyways, it is certainly advised to have them check if they are actually running as root before doing anything else.
+
+[libsuperuser :: Shell.java @ GitHub] provides the following (static) utility function that performs this test for you:
+
+	boolean Shell.SU.available()
+This is a blocking call.
+
+3.4. Checking for su version
+While this is not something most root apps need to do, and not all su binaries even support this, this might be something you want to do. Both (recent) Superuser su binaries as well as SuperSU su binaries support the -v (for display) and -V (for internal comparison) parameters to check the version number.
+
+As stated above, a potential problem is that a su binary that doesn't support these parameters may start an interactive shell instead. A work-around for this is to pipe "exit\n" to the su process, this will assure your app gets control back from su.
+
+[libsuperuser :: Shell.java @ GitHub] provides the following (static) utility function that retrieves these version numbers (for the su binary, not the GUI package), or returns null if unable:
+
+	String Shell.SU.version(boolean internal)
+This is a blocking call.
+
+3.5. Mount namespaces
+When SuperSU versions 1.50 and up run in daemon mode (Android 4.3+, and rare older Android OEM versions with SELinux set to enforcing), each process' su shell receives an isolated mount namespace. This means that mounts applied in one su shell may not be visible to other processes, except (most) other su shells started by the same parent process (your app). SuperSU in this case also tries to make the sdcards mounts and user-specific mounts available to the su shell, which hopefully makes your job easier.
+
+One of the features of this mount namespace isolation is that it prevents apps from interfering with eachother's mounts so that race conditions between two apps trying to manipulate the same mount (switching /system between read-only and read-write repeatedly, for example) cannot occur, and all works as the app developer expects.
+
+Android itself has offered similar mount namespace isolation for apps from version 4.2. SuperSU versions 1.93 and up support the --mount-master option which (if running in daemon mode) connects your app to a special su shell, which' mount commands are applied to all processes. If you need to 'publicly' apply a mount, use this option.
+
+
+
+4. When to call su
+4.1. When not to call su
+The main thread
+Do not call su when running on the main application thread. The number one reason for freezes and crashes when apps request root access is that su is being called from the main thread. You should consider the su command to be equivalent to a blocking I/O call, like disk or network access. These should not be done from the main thread either - in fact, on newer Android versions, performing network I/O in the main thread will (intentionally) crash your app, and in strict mode the screen will flash red if you perform any disk I/O on the main thread to warn you of your error.
+
+Blocking I/O calls on the main thread are bad because it is completely dependant on external factors how long the call will take. The call may take 100 milliseconds, 30 seconds, or an hour. Even if you think some minor I/O command should never take more than a few milliseconds, you still shouldn't do it from the main thread - you're making a guarantee you can't deliver on, and probably reducing the responsiveness of your app. If the main application thread blocks like this for more than a few seconds, an Application Not Responding (ANR) crash is generated by the system.
+
+Because the su call is pretty much guaranteed to perform blocking I/O itself, and might even need to show its GUI and wait for user input, you cannot make any assumptions about how long it will take for the call to return, and thus you should never call it from the main thread.
+
+I have often received complaints from SuperSU users about the countdown timer in the root access request popup that is (at the time of this writing) enabled by default, and will automatically deny root access after a number of seconds. The only reason this timer was built is because far too many root apps call su from the main thread, and if the popup would not time out and the user wouldn't grant or deny root access relatively quickly, the app that had requested su access would crash with an ANR. The timer helps reduce (but not eliminate) the chances of that happening, but it is merely treating symptoms, not solving problems.
+
+A note on su being a blocking call
+Most ways to start a new process are actually non-blocking, and the child process runs in a different thread. However, most example and library code either call Process.waitFor or read/write from/to the process's STDIN, STDOUT or STDERR stream. All of these possibilities turn the code that calls su into blocking code, waiting for the su process.
+
+Though it is actually possible to call su in a non-blocking fashion from the main thread, but it is easy to make mistakes that way, and it is often simpler to create a single block of code that handles calling su (like the sample Shell.XX.run code provided) and simply run that from a different thread.
+
+There are however situations where calling su in a non-blocking way is actually preferred (like keeping a su session open in the background and continuously reading and writing from/to it). The sample code does provide the Shell.Interactive class which can be used in this way from the main thread, queueing commands and receiving callbacks, but how to use this class is not documented by this article (read the inline documentation in the source code instead), for the sake of keeping things simple.
+
+BroadcastReceivers
+Most of the time BroadcastReceivers run on the main thread (something often overlooked), and thus no blocking I/O calls like su should be made. Aside from running on the main thread, the su call itself may need to broadcast an intent to communicate with the GUI. This presents a problem because the latter broadcast may be waiting on the previous broadcast to complete, which it will not do until the onReceive method completes, which is in turn waiting for the su call to complete. This will cause an ANR.
+
+Services
+As with BroadcastReceivers, many developers at first overlook that a basic Service also executes on the main thread, and is thus also susceptible to ANRs. That is, unless you are using a special Service subclass (like IntentService) that uses a background thread, or added a background thread to the service yourself.
+
+4.2. Detecting the main thread
+Detecting if your code is running on the main thread is generally done as follows:
+
+	if (Looper.myLooper() == Looper.getMainLooper()) {
+		// running on the main thread
+	} else {
+		// not running on the main thread
+	}
+You might have noticed this code in the Shell.run() call in [libsuperuser :: Shell.java @ GitHub]. If it is detected you are running on the main thread, and the Android project is compiled in debug mode (BuildConfig.DEBUG == true), an exception will be thrown and your application will crash. Hopefully this will convince you to try and run your shell code in a background thread - and not to remove the check!
+
+4.3. Using AsyncTask
+The AsyncTask class is often used to perform quick and easy background processing for relatively short operations. You can safely call su from the AsyncTask's doInBackground method. Here is an example of a minimal implementation inside an Activity:
+
+	public class MainActivity extends Activity {
+		private class Startup extends AsyncTask<Void, Void, Void> {
+			@Override
+			protected Void doInBackground(Void... params) {
+				// this method is executed in a background thread
+				// no problem calling su here
+
+				return null;
+			}
+		}
+
+		@Override
+		public void onCreate(Bundle savedInstanceState) {
+			super.onCreate(savedInstanceState);
+			setContentView(R.layout.activity_main);
+
+			// start background task
+			(new Startup()).execute();
+		}
+	}
+Of course, usually you may want to execute some code before and after the background task runs, like showing and hiding a ProgressDialog so the user knows a background action is being performed, and the GUI can't be used until that action completes: [libsuperuser_example :: MainActivity.java @ GitHub] contains a basic example.
+
+Please note that nothing is perfect, and AsyncTask also has some issues. For example, the AsyncTask keeps running until it is finished even if the owning Activity is closed, unless you call the AsyncTask's cancel method, and actually handle that in your doInBackground method (by periodically checking the cancelled state and/or making sure the method is Interruptible). For example, the user rotating the device may cause your Activity to be closed and re-created, re-launching the AsyncTask while the old one is still running. These are not insurmountable issues, but as with any tool you use, you need to know when, how, and when not to use it.
+
+4.4. Using IntentService
+While AsyncTask is a very useful class you will no doubt often employ, sometimes it's just not the right tool for the job. For example, you can't directly use an AsyncTask from a BroadcastReceiver, because once the onReceive method completes, your process may not have any active components left, and thus may be killed. The correct thing to do for any blocking I/O - including su calls - from a BroadcastReceiver is starting a Service and running the code from there.
+
+However, a standard Service actually runs on the main thread as well, unless you do the extra work to run code in a background thread. The IntentService class however, is an easy to use Service subclass designed specifically to run tasks (expressed by Intents) in a background thread, and automatically stop itself when it runs out of work. Perfect for fire-and-forget style tasks.
+
+Many apps use a BOOT_COMPLETED BroadcastReceiver to perform some processing after the device is booted, without user interaction - a perfect case for IntentService. Your AndroidManifest.xml file will start out looking something like this, with a public (exported) BroadcastReceiver and a private (non-exported) IntentService:
+
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+	<application ...>
+		...
+
+		<receiver android:name=".BootCompleteReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<category android:name="android.intent.category.HOME" />
+			</intent-filter>
+		</receiver>
+
+		<service android:name=".BackgroundIntentService" />
+
+		...
+	</application>
+Next, we create a very basic IntentService in BackgroundIntentService.java:
+
+	public class BackgroundIntentService extends IntentService {
+		public static void launchService(Context context) {
+			if (context == null) return;
+			context.startService(new Intent(context, BackgroundIntentService.class));
+		}
+
+		public BackgroundIntentService() {
+			super("BackgroundIntentService");
+		}
+
+		@Override
+		protected void onHandleIntent(Intent intent) {
+			// the code you put here will be executed in a background thread
+		}
+	}
+All that is left now, is to launch this background service from your BroadcastReceiver, in BootCompleteReceiver.java:
+
+	public class BootCompleteReceiver extends BroadcastReceiver{
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			BackgroundIntentService.launchService(context);
+		}
+	}
+That is all there is to it - once you know how, it's incredibly easy. Of course, this IntentService only performs a single action and doesn't take any parameters: [libsuperuser_example :: BackgroundIntentService.java @ GitHub] contains a more elaborate example.
+
+Instead of running in your BroadcastReceiver on the main thread, your code is now running safely in a background thread without risking an ANR crash. There is however a minor snag. Many apps send Toasts from their BroadcastReceivers - this is a bit harder to do from a background thread due to some minor bugs in the Android framework. Refer to [libsuperuser :: Application.java @ GitHub] for a workaround.
+
+
+
+5. SELinux / SEAndroid
+5.1. Introduction
+SELinux is short for NSA Security-Enhanced Linux, and provides fine-grained access control beyond the limits of uid/gid-based access control. SEAndroid is its Android port, which this article will also refer to as SELinux. It is used in one of two modes: permissive mode where policy violations are logged but no action is taken, and enforcing mode where policy violations are prevented from happening.
+
+SELinux has been present in stock Android since 4.3 (API Level 18, JELLY_BEAN_MR2) in permissive mode, and was switched to enforcing mode in Android 4.4 (API Level 19, KITKAT). You should however not depend on these API levels to detect SELinux presence or mode, as there are even some 4.2(!) firmwares in the wild with SELinux built-in and set to enforcing, and the much more common case of 4.4 firmwares running in permissive mode.
+
+5.2. What this means for you
+As a root app developer, you need to learn how to deal with SELinux. You do not need to know all the ins and outs of this very complex system and the policies used by stock as well as OEM-custom builds, but depending on the type of root app you are making, you may need to spend some extra time testing on different firmwares and devices to get things working reliably.
+
+To make matters worse, SELinux is a moving target, with policies changing between Android versions and even OEMs - the policies on (for example) a Samsung device may be significantly different from the policies on a Nexus device.
+
+If SELinux is set to permissive mode, there is relatively little to worry about, but when it is set to enforcing, the part of your app running as root may run into all sorts of unexpected restrictions.
+
+SuperSU versions 2.11 and newer actively patch SELinux policies from Android 4.4 onwards, circumventing a large number of issues a root app would otherwise run into on an enforcing system. From SuperSU versions 2.23 onwards, by far most cases you would need to write special code for are covered by the newest policy patches. Still, it is good to read the rest of this section so you know how it works if you do run into a special case.
+
+Note that various custom kernels and firmwares switch SELinux back to permissive for Android 4.4 and newer. This completely disables all the new security features SELinux brings, rather than relaxing only the areas we absolutely need to get our apps to function. It is rare for a root app to require further patches to the current SELinux policy beyond what SuperSU already does for you, but if it is needed, an API is provided for that. It is of course up to the user to decide if SELinux should be permissive or not, but it is certainly good practise to make sure your apps work on an enforcing system.
+
+There is a lot of mention of various SuperSU versions. This is only listed for completeness sake, as many details have changed between the first 'retail' Android 4.4 release and the first 'retail' Android 5.0 release. Android 5.0 users should be considered to be running version 2.23 or newer.
+
+5.3. Detecting SELinux
+While it is probably wise to make sure your code runs regardless of SELinux presence or mode, sometimes you will need to detect if SELinux is present and set to enforcing. This can generally be done by reading /sys/fs/selinux/enforce, which is a world-readable file.
+
+For some example code, see the Shell.SU.shell() call in [libsuperuser :: Shell.java @ GitHub]
+
+5.4. Contexts
+5.4.1. Basics
+The current SELinux context defines which security policies apply to your process. The 'highest' usermode context is generally u:r:init:s0. Contrary to what you may expect, this does not necessarily mean this context has access to everything. Some common contexts you may come in contact with:
+
+u:r:kernel:s0    - Kernel context
+
+u:r:init:s0    - Highest init usermode context
+u:r:init_shell:s0    - Shell started from init
+
+u:r:shell:s0    - Unpriviliged shell (such as an adb shell)
+
+u:r:system_server:s0    - system_server, u:r:system:s0 on some firmwares
+u:r:system_app:s0    - System apps
+u:r:platform_app:s0    - System apps
+u:r:untrusted_app:s0    - Third-party apps
+
+u:r:recovery:s0    - Recovery
+
+u:r:supersu:s0    - SuperSU's own context, v2.79-SR1+ on Android 7.0+
+#4 through #9 can be used with SuperSU's -cn/--context option. With v2.60+ on Android 5.0+, all contexts can be switched to with this option.
+
+The default policies that make up these contexts can be found under external/sepolicy in your Android source tree. Note that OEMs tend to modify these policies, and these policies change between Android version. To assure compatibility, your app should be tested on all API revisions, and if possible on flagship devices from all the major OEMs - if you cannot do this yourself, depend on your core users.
+
+5.4.2. init vs init_shell vs shell vs supersu
+On firmwares that use SELinux, su is generally implemented as a proxy to a daemon started from init. It is important to note that su shells may run as u:r:init:s0, u:r:init_shell:s0 or u:r:supersu:s0. SuperSU itself should always run as u:r:init:s0 or u:r:supersu:s0 if SELinux is set to enforcing, but not all superuser shells do.
+
+There are various ways to switch contexts, for this specific case switching from u:r:init:s0 to u:r:init_shell:s0 can be done by launching a second sh (be careful not to use mksh as it is being deprecated). If you have a command that needs to be run as u:r:init_shell:s0, just wrap the command in sh -c "...command...", to make sure that it does.
+
+Adb uses the u:r:shell:s0 context, which has very different policies. Be careful not to confuse them!
+
+5.4.3. Why switch contexts ?
+You might wonder why - if we're already running as the init context, as the root user, and with SuperSU actively patching SELinux policies - do we still need to switch contexts?
+
+If on an enforcing system running SuperSU you run the su command, you do indeed end up in a completely unrestricted shell. Aside from lowlevel manipulations restricted by the bootloader and/or TrustZone (different stories altogether), there is nothing you cannot do in this shell.
+
+Android as a whole is a complex system spanning a number of processes, running as different users and different contexts. The SELinux policy defines the rules for transitions and communication between all these. Just because there are no restrictions for our shell, does not mean no restrictions apply for other processes we need to deal with.
+
+SELinux policies are not bidirectional, so even if we can talk to other processes, those restricted processes may not be able to talk back to us. The solution is to disguise ourselves so those processes are allowed to talk to us: switching contexts.
+
+Of course, we could free those other processes from their SELinux chains as well, but continuing down that line will eventually end up completely negating all the security benefits SELinux can bring. The line has to be drawn somewhere, and for SuperSU the line has been drawn on the basis of necessity. It is not needed to further relax SELinux policies for these commands to be executed, and thus we do not further relax the SELinux policies, even though it is at a slight inconvenience for the root app developers.
+
+5.4.4. How to switch contexts
+There are several ways to switch contexts. Sometimes executing a certain binary automatically causes a switch (like going from u:r:init:s0 to u:r:init_shell:s0 by running sh from init). Most of the time, you will need to do a more explicit form of context switching.
+
+The runcon command (available in toolbox since select builds of Android 4.1) executes a command as the supplied context argument, assuming you are allowed to make that context transition.
+
+The run-as command (available since Android 2.2.3) will similarly imitate a specific (non-system) package and its context.
+
+Unfortunately, both of these commands cannot generally be depended upon, as they only work in very specific circumstances, and thus, SuperSU versions 1.90 and up support the -cn or --context parameter to execute your su calls in a certain context. See the Shell.SU.shell() call in [libsuperuser :: Shell.java @ GitHub] on how to construct an interactive shell command with that syntax. Right now, only SuperSU supports this, though (please let me know if this situation changes, as I expect it to).
+
+SuperSU versions 1.97 and up are required for Android 4.4+ compatibility of this feature. The u:r:system_server:s0, u:r:system_app:s0, u:r:platform_app:s0, and u:r:untrusted_app:s0 contexts are currently supported from v1.97 onwards, and v2.00 adds u:r:shell:s0 ands u:r:recovery:s0 (if available). My advice is to use the untrusted_app variant wherever possible as it is the least priviliged one and the most likely one to stay available longterm. If you run into issues, try the system_app variant. Note that the system_server variant already doesn't work on all devices out there, so use it only when you absolutely need to and test it well.
+
+Please note that the -cn/--context option is designed to work regardless of platform version and state. If SELinux is not present or set to permissive, the command will simply be executed as the u:r:init:s0 context.
+
+5.4.5. When to switch contexts
+Context switching is a complicated process, and I advise to use it sparingly. Not only are there a number of processes involved, input and output handling is also done differently from other commands executed through su. Do not be surprised when using an adb shell for testing, if your terminal prompt disappears - the context you just switched to may not support terminal access, as one example.
+
+You will need to find out for yourself what exactly doesn't work as the u:r:init:s0 context and requires a context switch, there is no list of problematic commands. Traditionally, all commands that launch Java-based code however should be run as one of the *_app contexts, though many of them work fine without doing so.
+
+As a (strange) example, let's wipe the interal sdcard, uninstall the com.example.app package, and wipe the Dalvik cache. The following commands would all be piped to a su shell and thus run as root:
+
+	toolbox rm -rf /data/media/*
+	su --context u:r:system_app:s0 -c "pm uninstall com.example.app" < /dev/null
+	toolbox rm -rf /data/dalvik-cache/*
+Interesting bits about this example:
+
+su is called again from inside a su shell to minimize risk of running into restrictions for the other commands, and a context switch is only done when needed.
+u:r:system_app:s0 is used instead of u:r:untrusted_app:s0 as the latter may not be allowed to uninstall an app.
+The input stream of the context switching su shell is piped from /dev/null, to prevent that command from gobbling up all the data in the input stream (due to the I/O traversing several processes), and thus preventing the wipe of /data/dalvik-cache from happening. This is only needed in select circumstances: when you are piping commands to the su shell, and you send the next command before waiting for the result of the previous command.
+Note: this specific example is actually no longer relevant from SuperSU version 2.23 onwards, as the pm command now works from the u:r:init:s0 context, but it still illustrates how exactly to run commands as a different context, should the need arise.
+
+5.4.6. Filesystem and socket contexts
+Previous mentions of context switching have applied to processes. Filesystem objects and sockets however also have an associated SELinux context. In the case of the filesystem, these are easily changed at any time by using the toolbox chcon command. Sockets, however, are another matter - their context can pretty much only be set when the socket is created.
+
+For example, if you are writing your own daemon service, it may be the case that you're communicating between two contexts who cannot normally access eachother's sockets. You could launch the daemon from a different context, but that may lead to other issues. Another option is to change the context of the socket to something both processes can use. This can be done via procfs as listed below. Set the context just before creating the socket, and set it back afterwards.
+
+5.4.7. Direct context manipulation
+You can manipulate various SELinux contexts for your process directly via procfs: see /proc/self/attr/*. Similarly, global SELinux settings can be accesses via sysfs: /sys/fs/selinux/*.
+
+By far most root app developers should never need to access any of these manually.
+
+5.5. Policies
+5.5.1. The supolicy tool
+The supolicy tool comes with SuperSU versions 2.11 and runs on 4.4 and newer firmwares. Its main use is to modify the current SELinux policy, though it does provide other functionalities as well (which are beyond the scope of this document).
+
+SuperSU runs the supolicy tool when the daemon is started at boot time. Afterwards, it runs all the executables in su.d, and calls setprop supolicy.loaded 1.
+
+The supolicy command's --live parameter patches the current SELinux policy with the core patches for SuperSU, and any additional changes you add on the command line. Patching and reloading SELinux policies is a very expensive call, and should be performed as little as possible. Keeping track of if you have run your patches using a static boolean is advised, as that will keep it's state between app launches, as long as Android doesn't completely clear your app from memory.
+
+The --live parameter takes as many policy statements (explained further below) as you can throw at it, as long as you do not exceed the maximum command line length - which is guaranteed to be >= 4096 bytes. Each policy statement needs to be within a single parameter, though, so you need to wrap them in "quotes". You may separate multiple policy statements inside the quotes with a semicolon; or simply use multiple quoted parameters. Dividing the patches into multiple supolicy calls is possible, but due to the expensive nature of the call, should not be done unless you have a very good reason to. Once the call returns, the policies are active.
+
+It should further be noted that having to patch policies is extremely rare. Ninetynine out of a hundred times you can accomplish what you want to do without patching any policies, so please thoroughly investigate if you need to patch policies at all.
+
+There has been some debate whether or not policy patching needs a special popup or notice in SuperSU. This is not happening because there is nothing special about patching policies. Any process running as root in the u:r:init:s0 context can do it, so if an app has been granted root, they could use their own code to patch the policies rather than using the supolicy tool, and the end user still wouldn't know about it. As a compromise, the supolicy tool does log all policy patches to the Android logs (logcat).
+
+5.5.2. Default patches
+Aside from various small policy patches that open various communication paths between the su processes, the major changes to the stock policy supolicy makes is making init, init_shell (v2.22+), and recovery permissive.
+
+The logic behind this is that aside from su and the init and recovery processes themselves, nothing should be running as these contexts, so we're not making anything else more exploitable than it already was (contrary to turning the entire system permissive).
+
+If you're wondering why we're not using the AOSP-standard su context, that is because it is filtered out on many 'retail' firmwares.
+
+Starting v2.79-SR1+ on Android 7.0+, instead of the modifications listed above, everything related to SuperSU runs in its own supersu context instead. The init context is only modified enough to let the daemon switch to the supersu context as needed.
+
+5.5.3. Use caution
+Relaxing security measures in theory always opens up a hole somewhere. The severity of such a hole must be carefully considered before making any changes - it is quite easy to open up major holes. As a rule of thumb, if you're adding allow policies with an *_app class as either source or target class, you're very likely to be doing something you shouldn't, and you should tread carefully.
+
+5.5.4. Audits
+On most firmwares, if you try to do something that is blocked by SELinux, an audit message appears either in dmesg, logcat, or a log file somewhere on /data. You can use these to track down policies you may need to patch, or at least to get hints where your app's problems lie. Note that audit messages are also produced for permissive contexts, even though nothing is really blocked.
+
+If something is not working as expected in your root app, audit messages are the first thing you should check. A typical audit message may look like this (example from StickMount):
+
+	W/sdcard  (  216): type=1400 audit(0.0:53): avc: denied { getattr } for path="/data/media/0/usbStorage/sda1" dev="sda1" ino=1 scontext=u:r:sdcardd:s0 tcontext=u:object_r:unlabeled:s0 tclass=dir permissive=0
+The sdcard process, with source context u:r:sdcardd:s0 does not have the getattr permission (of class dir) on an object (/data/media/0/usbStorage/sda1) with the u:object_r:unlabeled:s0 context. The four variables you need to read in this line are:
+
+source class: sdcardd (scontext=...)
+target class: unlabeled (tcontext=...)
+permission class: dir (tclass=...)
+permission: getattr ({ ... })
+5.5.5. Allow
+The above example is from StickMount, a root app that allows you to mount USB sticks to a subdirectory of your internal storage. All internal storage reads and writes from 3rd party apps go through the sdcard daemon process, that runs in the sdcardd context. Most mounts are uneventful, as when you mount storage, you can tell the system which security label (context) to use for the files. However, if a filesystem is not supported by the kernel itself (in this case, exFAT on a Nexus 9), the filesystem needs to be mounted via FUSE, which may not support setting a security label. And thus, the files show up as unlabeled, which the sdcardd context is not allowed to touch. When we try to access the mounted directory with a file explorer, the audit message stated above is generated.
+
+What we want to do now is craft an allow policy statement that will fix this issue. We can do so without too much risk, as unlabeled files are not supposed to exist anywhere else on the system, and only sdcard runs as the sdcardd context (it's not like we're patching untrusted_app, which should generally be avoided). Allow policy statements take these form (if you're familiar with .te source policy files, it's very similar):
+
+	allow source-class target-class permission-class permission
+source-class, target-class, and permission (so not permission-class) can be collections, as denoted by curly brackets:
+
+	allow { source1 source2 } { target1 target2 } permission-class { permission1 permission2 }
+This is expanded to:
+
+	allow source1 target1 permission-class permission1
+	allow source1 target1 permission-class permission2
+	allow source1 target2 permission-class permission1
+	allow source1 target2 permission-class permission2
+	allow source2 target1 permission-class permission1
+	allow source2 target1 permission-class permission2
+	allow source2 target2 permission-class permission1
+	allow source2 target2 permission-class permission2
+In our example case, the allow statement becomes:
+
+	allow sdcardd unlabeled dir getattr
+And it can be applied like this:
+
+	supolicy --live "allow sdcardd unlabeled dir getattr"
+Trying again to access our mounted directory with a file explorer, results in the following audit message:
+
+	W/sdcard  (  215): type=1400 audit(0.0:60): avc: denied { read } for name="/" dev="sda1" ino=1 scontext=u:r:sdcardd:s0 tcontext=u:object_r:unlabeled:s0 tclass=dir permissive=0
+Another missing permission (read) of the same class (dir), so we update our policy statement to:
+
+	supolicy --live "allow sdcardd unlabeled dir { getattr read }"
+We can continue this process for some time, and we'll end up with a list of policies we need to patch. In this case, you might just want to add all permissions of class dir (and as you would later discover, file as well). But how do you find these? You can go through the external/sepolicy folder in your AOSP source tree, which lists them all, or you can use the supolicy --dumpav command, which lists all current policies, and steal the permissions from there. In the end, these are the policies being applied by StickMount:
+
+	supolicy --live
+		"allow sdcardd unlabeled dir { append create execute write relabelfrom link unlink ioctl getattr setattr read rename lock mounton quotaon swapon rmdir audit_access remove_name add_name reparent execmod search open }"
+		"allow sdcardd unlabeled file { append create write relabelfrom link unlink ioctl getattr setattr read rename lock mounton quotaon swapon audit_access open }"
+		"allow unlabeled unlabeled filesystem associate"
+5.5.6. Other policy statements
+The other policy statements supported by supolicy at this time are:
+
+    deny source-class target-class permission-class permission
+    permissive class
+    enforcing class
+    attradd class attribute
+    attrdel class attribute    
+
+v2.79-SR1+:    
+    create class
+    auditallow source-class target-class permission-class permission
+    auditdeny source-class target-class permission-class permission
+    allowxperm source-class target-class permission-class ioctl range
+All parameters may be collections, aside from the permission-class parameter. The permission parameter may be * to select all (v2.79-SR1+). It is highly unlikely you will ever need any statement other than allow for anything other than testing purposes. That being said, should you come up with a valid reason to use any of these, then it is still advised to only use the statements that relax security (allow, permissive, attradd) rather than further enforce it (deny, enforcing, attrdel). With the latter, you may inadvertently break other root apps running on the device.
+
+If you are reading from the external/sepolicy folder of your AOSP tree, it is also worth noting that neverallow rules are a compile-time thing and these do not show up in the policy files. SELinux denies by default, and only allows what you explicitly state should be allowed. Many of the source statements use collections that are ultimately expanded to a large set of rules. The neverallow statement just makes sure that if a certain allow statement exists, it is removed. The neverallow statement is not stored or applied in the resulting policy file. There's no need to counter these other than allowing whatever your app needs.
+
+
+
+6. Embedding
+6.1. Files
+All the files you need are in the latest SuperSU flashable ZIP. The latest 'stable' build can always be retrieved from my server, for the latest 'beta' release you need to check the beta thread in the SuperSU forums.
+
+The installation script inside the ZIP is META-INF/com/google/android/update-binary. This is not a binary as the name suggests, but a shell script, and the standard update ZIP's updater-script file is just a dummy.
+
+This script has comments which document which files go where on which API level, and what their file permissions, ownerhips, and security labels must be. If you have done this exactly right, SuperSU will not complain when you open the app after booting.
+
+6.2. Custom ROMs
+It is non-trivial to include SuperSU exactly right on your own. It is therefore often easiest to include the latest SuperSU ZIP inside your own flashable ZIP, and chain its installation.
+
+Adding the latest SuperSU zip as supersu/supersu.zip in your ROM's ZIP and appending the folowing lines to the end of your updater-script will do just that:
+
+	package_extract_dir("supersu", "/tmp/supersu");
+	run_program("/sbin/busybox", "unzip", "/tmp/supersu/supersu.zip", "META-INF/com/google/android/*", "-d", "/tmp/supersu");
+	run_program("/sbin/busybox", "sh", "/tmp/supersu/META-INF/com/google/android/update-binary", "dummy", "1", "/tmp/supersu/supersu.zip");
+An example ZIP can be downloaded here, which installs SuperSU v2.30 from inside the ZIP, tested with TWRP 2.8.2.1 on a Nexus 9 running Android 5.0.
+
+Additionally, you should see the section about the supolicy tool, as it describes which properties are set and which scripts are called after SuperSU is done patching policies, and root calls are from the unrestricted init context.
+
+6.3. Exploits
+Over the past years, many exploits have installed SuperSU as their means of persistent root. Often the exploit leaves the system in an unstable state, and a proper and lengthy installation may not be possible. The APK can fix a partial install as long as basic root works. At the time of this writing, that means at least these files need to be present, and for the right architecture and amount of bits for the firmware (see the ZIP script for permissions and API levels):
+
+/system/xbin/su
+/system/xbin/daemonsu
+/system/xbin/supolicy
+/system/lib(64)/libsupol.so
+Furthermore, daemonsu --auto-daemon needs to be launched somehow on boot. This is generally done via install-recovery.sh, 99SuperSUDaemon, or hijacking app_process([32|64]).
+
+Alternatively, you can include the ZIP and run SuperSU's installation script. For this to work, at the time of this writing, the following commands need to be available on the PATH:
+
+	cat, chmod, chown, cp, dd, echo, grep, ln, losetup, ls, mkdir, mknod, mount, mv, readlink, rm, rmdir, sh, sleep, sync, umount, unzip
+Additionally, sh needs test support ([ ] square brackets work in if statements). Aside from unzip, all of these should be present on a fully booted 4.3+ Android device. If not, you can provide a (SELinux capable) toolbox or busybox and symlink these commands somewhere on the PATH. Last but not least, /tmp should be writable. If all of these dependencies are met, you can install the ZIP as follows:
+
+	unzip /path/to/supersu.zip META-INF/com/google/android/* -d /tmp
+	sh /tmp/META-INF/com/google/android/update-binary dummy 1 /path/to/supersu.zip
+Due to the script trying things in various ways to support different systems and recovery versions, it will throw errors at you regardless of if the installation is succesfull or not. Just ignore those, reboot, and see if the SuperSU GUI complains when you open it.
+
+
+
+X. Updates
+X.1. Gobbling
+On December 17 2012, [libsuperuser @ GitHub] has been updated with Gobblers to consume STDOUT and STDERR. These are nothing more than background threads that consume STDOUT and STDERR output as fast as possible. The exact how and why is a long story (if interested, read [When Runtime.exec() won't @ JavaWorld]), but this avoids potential deadlocks when excess output occurs on STDOUT or STDERR. If you are using my library please make sure you are running the latest version. If you're not running my library it may be wise to read the linked article and see if there is a problem with your code.
+
+X.2. Full content logging
+SuperSU has a feature to log all su command content. While this works fine for most apps, some apps can run into unexpected problems when this feature is used. One example is terminal emulators - these will not show the command prompt if a su shell is started. SuperSU v0.97 (released November 29 2012) and newer support a way to let SuperSU know your app does not function well with full content logging enabled. If you use this method, SuperSU will not enable full content logging for your app if SuperSU has only been configured to log by default. If the user goes into app-specific configuration, the user can still enable full content logging for your app manually. The user will in that case be presented with a warning.
+
+To let SuperSU know your app is not fully compatible with full content logging, add the following to an Activity, Service, or BroadcastReceiver:
+
+	<meta-data android:name="eu.chainfire.supersu.meta.contentlogging.problematic" android:value="true" />
+For example:
+
+	<?xml version="1.0" encoding="utf-8"?>
+	<manifest xmlns:android="http://schemas.android.com/apk/res/android" ...>
+		<application ...>
+			<activity ...>
+				<intent-filter>
+					...
+				</intent-filter>
+				<meta-data android:name="eu.chainfire.supersu.meta.contentlogging.problematic" android:value="true" />
+			</activity>
+		</application>
+	</manifest>
+Adding it to a single Activity, Service, or BroadcastReceiver, is enough to get the entire package excluded from full content logging. There is no need to add it multiple times.
+
+Please note that I will not tolerate abuse of this feature. Full content logging is there for the end-user, and it should not be disabled this way without good reason. I may resort to blacklisting your package from root access altogether if you purposely abuse this.
+
+As far as I know, since SuperSU v1.39 (released July 3 2013), there are no longer any issues with full content logging and certain apps. As such, this section may be obsolete.
+
+X.3. Parameters for su
+SuperSU originally took its parameter parsing from ChainsDD's Superuser's su binary. On January 11 2012 modifications regarding parameter parsing were pushed to ChainsDD's GitHub [fc7479fab2 @ GitHub]. SuperSU has virtually identical updated parameter parsing from v1.00. While this does allow for some interesting constructs in calling su, you must be aware that not all constructs possible with the original parameter parsing will be interpreted in the same way with the new parameter parsing.
+
+I would also like to point out specifically that (1) the command to execute, following the -c or --command parameter, should be a single parameter, (2) that parameter is not even supported by all su variants available in the wild, and (3) the most reliable way to execute commands as root still remains starting su as a shell and piping commands and output.
+
+Some su variants on some devices do not support anything else than being started as an interactive shell. Exact parameter parsing of the more functional su binaries differs by author and by version, sometimes very subtly. The older the version of Android your app can run on, the higher the chance of running into an exotic or incompatible su binary. You'd be surprised what your app can run into in the wild.
+
+As such, in my personal opinion, it is always wisest and most compatible to simply run su as an interactive shell and pipe commands and output. If you must deviate from this, you should at least thoroughly test your app with (1) the most recent Superuser, (2) a Superuser (and binary) from 2011, (3) SuperSU v0.99 or older, and (4) SuperSU v1.00 or newer.
+
+X.4. ACCESS_SUPERUSER permission DEPRECATED
+Due to changes in Android 5.0 Lollipop, this permission has been deprecated and is completely ignored from SuperSU v2.30 onwards
+
+From SuperSU version 1.20 and onwards, the android.permission.ACCESS_SUPERUSER permission is declared by SuperSU. All root apps should from now on declare this permission in their AndroidManifest.xml:
+
+	<uses-permission android:name="android.permission.ACCESS_SUPERUSER" />
+If this permission is not present, SuperSU will present a warning in its superuser request popup (this is configurable in SuperSU settings). At the time of this writing this permission is not enforced, but it is expected that sometime in the future it will be, and apps requesting root that do not have this permission set will be silently denied.
+
+If this permission is declared, the user will be able to see in the app permissions list that the app requests superuser access.
+
+X.5. Tapjacking protection and overlays
+SuperSU v2.04 has introduced tapjacking protection to the superuser access prompt. This protection is used in many security-related dialogs in Android. What it comes down to is that the popup will not react to input of it is obscured by any other activity, view, overlay, etc. This prevents a malicious app from displaying a touch-transparent image on top of the popup that would for example switch around the accept and deny buttons.
+
+There are however some legitimate uses for overlays, a common use for them is to adjust display colors. An app displaying such overlays should hide the overlay when the SuperSU popup becomes visible, and show it again. To facilitate this, SuperSU will send a broadcast to apps that have previously been granted root access. So an app like this should indeed disable its overlays and request root access when it is first launched/configured, even if it does not require root!
+
+The following BroadcastReceiver can be used to receive information on when to hide overlays. See [libsuperuser :: HideOverlaysReceiver.java @ GitHub] for a base class explaining the details.
+
+	<receiver android:name=".HideOverlaysReceiver">
+		<intent-filter>
+			<action android:name="eu.chainfire.supersu.action.HIDE_OVERLAYS" />
+			<category android:name="android.intent.category.INFO" />
+		</intent-filter>
+	</receiver>
+X.6. su.d
+Starting v2.22, after supolicy is called to patch SELinux policies, all executables in the /system/su.d/ and /su/su.d/ are executed. Both the directories and the containing scripts and binaries should be chmod 0700. Some firmwares have a similar feature in /system/(etc/)init.d/, though execution of those scripts is both kernel-dependent and they may run before the SELinux policies are patched and/or su is available.
+
+Starting v2.76, these scripts are executed before zygote is started, and are thus in time for most bind-mount purposes, unless the scripts run too long.
+
+These are the guarantees made for su.d:
+
+All SELinux patching is complete before su.d scripts are executed
+All scripts inside su.d are executed in alphabetical order (0-9a-z)
+Scripts are run serially. The next one in order is not started until the previous one has finished.
+Boot does not proceed until all scripts have been executed
+unless your boot image does not support exec (very rare)
+unless scripts run longer than the timeout (4 seconds originially, 60 seconds since v2.78-SR1)
+As the scripts are run serially, if your script does not need to delay the boot process, the script itself should make sure its actions are run asynchronously. For example:
+
+#!/su/bin/sush
+(
+    sleep 300
+    echo done
+)&
+    
+This example is for systemless root, which should use /su/bin/sush as shell interpreter. The () parenthesis cause a sub-process to be created that runs the commands inside them. The & ampersand following the closing parenthesis causes this sub-process to run asynchronously. This allows all the other scripts in su.d to continue running and for boot to continue. 'echo done' will be called after 5 minutes, at which time Android has probably long been up and running.
+
+--- EOF ---
