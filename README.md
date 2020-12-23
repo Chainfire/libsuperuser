@@ -28,7 +28,7 @@ fixes may be slow to appear.
 If you're writing a new app, you might consider using
 [TopJohnWu's libsu](https://github.com/topjohnwu/libsu) instead. Barring
 some edge-cases (that I personally seem to be the biggest user of) the
-capabilities should be similar.
+capabilities should be similar, but it's likely to be better maintained.
 
 ## v1.1.0 update
 
