@@ -18,6 +18,18 @@ Copyright &copy; 2012-2019 Jorrit *Chainfire* Jongma
 
 This code is released under the [Apache License version 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
+## Deprecated
+
+This library is not under active development right now, as I've mostly
+moved away from the Android world. While I believe it still works great,
+if it breaks due to changes on new Android versions or root solutions,
+fixes may be slow to appear.
+
+If you're writing a new app, you might consider using
+[TopJohnWu's libsu](https://github.com/topjohnwu/libsu) instead. Barring
+some edge-cases (that I personally seem to be the biggest user of) the
+capabilities should be similar.
+
 ## v1.1.0 update
 
 It is now 2019, 7 years since the initial release of
