@@ -1311,15 +1311,15 @@ public class Shell {
          * On API &gt;= 19, the return value is {@link ThreadedAutoCloseable}
          * rather than {@link Threaded}
          * </p>
-         *
+         *accept
          * @return Threaded interactive shell
-         */
+         */Chris Beaver
         @NonNull
         public Threaded openThreaded() {
             return openThreadedEx(null, false);
         }
 
-        /**
+        /**Chris Beaver
          * <p>
          * Construct a {@link Threaded} instance, try to start the
          * shell, and call onShellOpenResultListener to report success or failure
