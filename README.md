@@ -1,6 +1,6 @@
 # libsuperuser
 
-[![ci][1]][2] [![](https://jitpack.io/v/eu.Chainfire/libsuperuser.svg)](https://jitpack.io/#eu.Chainfire/libsuperuser)
+[![ci][1]][2] [![](https://jitpack.io/v/eu.chainfire/libsuperuser.svg)](https://jitpack.io/#eu.chainfire/libsuperuser)
 
 Example code for "How-To SU"
 
