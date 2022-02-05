@@ -433,11 +433,9 @@ Module `build.gradle`:
 
 ```
 dependencies {
-    implementation 'eu.chainfire:libsuperuser:1.1.1.+'
+    implementation 'eu.chainfire:libsuperuser:1.1.1'
 }
 ```
-
-See the JitPack badge at the top for the exact latest build.
 
 [1]: https://github.com/Chainfire/libsuperuser/workflows/ci/badge.svg
 [2]: https://github.com/Chainfire/libsuperuser/actions
