@@ -1,6 +1,5 @@
 apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
-apply plugin: 'com.jfrog.bintray'
 
 android {
     compileSdkVersion 28
@@ -27,32 +26,8 @@ android {
     }
 }
 
-version = "1.1.0." + (new Date()).format('yyyyMMddHHmm')
+version = "1.1.1." + (new Date()).format('yyyyMMddHHmm')
 group = "eu.chainfire"
-
-bintray {
-    Properties properties = new Properties()
-    if (project.rootProject.file('local.properties').exists()) {
-        properties.load(project.rootProject.file('local.properties').newDataInputStream())
-    }
-    user = properties.getProperty('bintray.user')
-    key = properties.getProperty('bintray.apikey')
-
-    configurations = ['archives']
-    dryRun = false
-    publish = true
-    pkg {
-        repo = 'maven'
-        name = 'libsuperuser'
-        desc = 'libsuperuser'
-        websiteUrl = 'https://github.com/Chainfire/libsuperuser'
-        issueTrackerUrl = 'https://github.com/Chainfire/libsuperuser/issues'
-        vcsUrl = 'https://github.com/Chainfire/libsuperuser.git'
-        licenses = ['Apache-2.0']
-        publicDownloadNumbers = true
-    }
-
-}
 
 install {
     repositories.mavenInstaller {
@@ -112,5 +87,3 @@ artifacts {
     archives javadocJar
     archives sourcesJar
 }
-
-bintrayUpload.dependsOn install
