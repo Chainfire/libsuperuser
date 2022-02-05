@@ -1,6 +1,6 @@
 # libsuperuser
 
-[![ci][1]][2]
+[![ci][1]][2] [![](https://jitpack.io/v/eu.Chainfire/libsuperuser.svg)](https://jitpack.io/#eu.Chainfire/libsuperuser)
 
 Example code for "How-To SU"
 
@@ -418,22 +418,26 @@ If so, those conditions should be noted in the method's javadoc.
 
 ## Gradle
 
-Gradle:
+Root `build.gradle`:
 
 ```
-dependencies {
-    implementation 'eu.chainfire:libsuperuser:1.1.0.+'
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
 }
 ```
 
-
-Old version, pre-Threaded/Pools:
+Module `build.gradle`:
 
 ```
 dependencies {
-    implementation 'eu.chainfire:libsuperuser:1.0.0.+'
+    implementation 'eu.chainfire:libsuperuser:1.1.1.+'
 }
 ```
+
+See the JitPack badge at the top for the exact latest build.
 
 [1]: https://github.com/Chainfire/libsuperuser/workflows/ci/badge.svg
 [2]: https://github.com/Chainfire/libsuperuser/actions
